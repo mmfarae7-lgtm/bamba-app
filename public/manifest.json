@@ -1,0 +1,20 @@
+{
+  "name": "توقعات بمبا",
+  "short_name": "BMBA",
+  "description": "توقع نتائج مباريات كرة القدم ونافس واربح الجوائز",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9d823",
+  "theme_color": "#197b40",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "/assets/branding/bmba-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+export type Tab = 'matches' | 'leagues' | 'ranking' | 'challenges';
+export type AuthStep = 'login' | 'signup' | 'app';
+export type Page = 'main' | 'matchDetails' | 'leagueDetails' | 'profile' | 'store' | 'coach' | 'challengeArena' | 'challengeQuiz' | 'challengeChampions' | 'challengeCoach' | 'challengeStore' | 'settings' | 'admin';
+
+export type MatchStatus = 'upcoming' | 'live' | 'finished';
+
+export interface Match {
+  id: number;
+  league: string;
+  home: string;
+  away: string;
+  homeShort: string;
+  awayShort: string;
+  time: string;
+  points: number;
+  featured?: boolean;
+  status: MatchStatus;
+  result?: string;
+  homeGoals?: number;
+  awayGoals?: number;
+  correctPct?: number;
+  wrongPct?: number;
+}
+
+export interface TeamStanding {
+  pos: number;
+  team: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  gd: number;
+  pts: number;
+}
+
+export interface Scorer {
+  rank: number;
+  name: string;
+  team: string;
+  goals: number;
+}
+
+export interface LeagueGroup {
+  title: string;
+  items: string[];
+}
+
+export interface RankingUser {
+  name: string;
+  points: number;
+  country: string;
+  rank: number;
+  bamba?: number;
+}
+
+export interface Challenge {
+  title: string;
+  text: string;
+  icon: string;
+  color: string;
+  page: string;
+}
+
+export interface Player {
+  id: number;
+  name: string;
+  team: string;
+  position: string;
+  price: number;
+  marketValue: string;
+  owned?: boolean;
+}

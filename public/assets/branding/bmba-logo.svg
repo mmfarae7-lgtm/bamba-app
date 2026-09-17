@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f9d823;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e5be12;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="95" fill="url(#bgGrad)" stroke="#168540" stroke-width="5"/>
+  <circle cx="100" cy="100" r="35" fill="none" stroke="#14763b" stroke-width="8"/>
+  <circle cx="100" cy="100" r="10" fill="#14763b"/>
+  <path d="M100 10 L100 42 M100 158 L100 190 M10 100 L42 100 M158 100 L190 100" stroke="#14763b" stroke-width="5" stroke-linecap="round"/>
+  <path d="M30 30 L52 52 M148 148 L170 170 M170 30 L148 52 M52 148 L30 170" stroke="#14763b" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+  <text x="100" y="180" text-anchor="middle" font-family="'DM Sans', Arial, sans-serif" font-size="22" font-weight="800" fill="#14763b">BMBA</text>
+</svg>
