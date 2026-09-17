@@ -121,6 +121,9 @@ export function SettingsPage({
         </button>
         {downloadDone && <div className="settings-success" data-testid="download-zip-success"><CheckCircle2 size={16} /> تم تنزيل الملف بنجاح!</div>}
         {downloadError && <div className="settings-error">{downloadError}</div>}
+        <a className="settings-download-link" href="/downloads/bamba-app.zip" download="bamba-app.zip" data-testid="direct-zip-link" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10, padding: '11px 14px', borderRadius: 12, background: '#eff8ef', color: '#197b40', fontWeight: 800, fontSize: 12, textDecoration: 'none' }}>
+          <Download size={16} /> تنزيل مباشر (رابط يفتح في المتصفح — مناسب للجوال)
+        </a>
       </div>
 
       <div className="settings-section">

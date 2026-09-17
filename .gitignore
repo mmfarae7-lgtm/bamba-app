@@ -21,3 +21,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# نسخة ZIP المولدة للتنزيل المباشر — تُعاد توليدها من آخر commit ولا تُرفع للمستودع
+/public/downloads/

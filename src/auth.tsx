@@ -30,7 +30,12 @@ export function LoginStep({ onGuest, onSignup, onLoginSuccess }: { onGuest: () =
     const { error: signInError } = await supabase.auth.signInWithPassword({ email: toAuthEmail(email), password });
     setLoading(false);
     if (signInError) {
-      setError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+      // مفاتيح الخدمة غير مفعلة بعد (مفتاح غير صالح) — لا علاقة للبيانات المدخلة
+      if (signInError.status === 401 && /api key/i.test(signInError.message)) {
+        setError('خدمة الحسابات غير مفعلة بعد في هذا المشروع — تُضبط مفاتيح Supabase في ملف .env');
+      } else {
+        setError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+      }
       return;
     }
     onLoginSuccess();
