@@ -11,7 +11,7 @@ import { CoachPage } from './coach';
 import { ProfilePage } from './profile';
 import { SettingsPage } from './settings';
 import { AdminPage } from './admin';
-import { supabase } from './lib/supabase';
+import { supabase, supabaseConfigured } from './lib/supabase';
 import type { Profile } from './lib/supabase';
 
 type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'session_error';
@@ -111,6 +111,13 @@ function App() {
   useEffect(() => {
     mountedRef.current = true;
 
+    if (!supabaseConfigured) {
+      setAuthState('unauthenticated');
+      return () => {
+        mountedRef.current = false;
+      };
+    }
+
     const initAuth = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
       if (!mountedRef.current) return;
@@ -168,7 +175,7 @@ function App() {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    if (supabaseConfigured) await supabase.auth.signOut();
     window.localStorage.removeItem(GUEST_KEY);
     setGuest(false);
     profileLoadedRef.current.clear();
@@ -185,6 +192,7 @@ function App() {
   };
 
   const retryProfile = async () => {
+    if (!supabaseConfigured) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
     profileLoadedRef.current.clear();
