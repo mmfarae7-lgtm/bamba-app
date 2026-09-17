@@ -13,4 +13,11 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  // بيئة الاستضافة تمرر HOST و PORT كمتغيرات بيئة — بدونها يعمل التطوير على 5173 محلياً
+  server: {
+    host: process.env.HOST || true,
+    port: Number(process.env.PORT) || 5173,
+    // اسمح بعناوين المعاينة/الإنجرس (تتغير بين البيئات) — سجل الدخول لا يتأثر
+    allowedHosts: true,
+  },
 });

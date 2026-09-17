@@ -29,34 +29,65 @@ import {
   Flame,
 } from 'lucide-react';
 import type { Tab, Match } from './types';
-import { BRAND } from './config/branding';
+import { BRAND, BRAND_LOGO_SIZES } from './config/branding';
+import type { BrandSize, BrandVariant } from './config/branding';
 
-export function BrandLogo({ size = 'md', linkToHome = false, onClick }: { size?: 'sm' | 'md' | 'lg'; linkToHome?: boolean; onClick?: () => void }) {
-  const dimensions = { sm: 28, md: 40, lg: 56 }[size];
+// المكوّن الموحّد للشعار — يعرض صورة الشعار الرسمية من المصدر المركزي في كل مكان.
+// كل النسخ (default/compact/white/dark) تستخدم نفس الملف الرسمي: الصورة شفافة
+// وتعمل على الخلفية الفاتحة والداكنة بلا حاجة لألوان بديلة.
+export function BrandLogo({
+  size = 'md',
+  variant = 'default',
+  linkToHome = false,
+  onClick,
+  className,
+}: {
+  size?: BrandSize;
+  variant?: BrandVariant;
+  linkToHome?: boolean;
+  onClick?: () => void;
+  className?: string;
+}) {
+  const dimensions = BRAND_LOGO_SIZES[size];
   const img = (
     <img
       src={BRAND.logo}
       alt={BRAND.logoAlt}
-      style={{ width: dimensions, height: dimensions, objectFit: 'contain' }}
+      width={dimensions}
+      height={dimensions}
+      draggable={false}
+      data-testid="brand-logo"
+      data-variant={variant}
+      className={className}
+      style={{
+        width: dimensions,
+        height: dimensions,
+        maxWidth: '100%',
+        objectFit: 'contain',
+        display: 'block',
+        background: 'transparent',
+        border: 0,
+      }}
     />
   );
   if (linkToHome) {
-    return <button onClick={onClick} style={{ background: 'transparent', padding: 0, border: 0 }}>{img}</button>;
+    return (
+      <button
+        onClick={onClick}
+        data-testid="brand-logo-home-button"
+        aria-label="الصفحة الرئيسية"
+        style={{ background: 'transparent', padding: 0, border: 0, cursor: 'pointer' }}
+      >
+        {img}
+      </button>
+    );
   }
   return img;
 }
 
-export function BambaMark({ compact = false }: { compact?: boolean }) {
-  return (
-    <div className={compact ? 'brand-mark compact' : 'brand-mark'}>
-      <div className="ball-mark"><CircleDot size={22} strokeWidth={2.4} /></div>
-      {!compact && <span>BMBA</span>}
-    </div>
-  );
-}
-
 export function TopBar({
   onProfile,
+  onProfilePage,
   onRewards,
   onHome,
   darkMode,
@@ -67,6 +98,7 @@ export function TopBar({
   onSettings,
 }: {
   onProfile: () => void;
+  onProfilePage: () => void;
   onRewards: () => void;
   onHome: () => void;
   darkMode: boolean;
@@ -78,36 +110,37 @@ export function TopBar({
 }) {
   return (
     <header className="topbar">
-      <button className="balance-chip" onClick={onRewards}>
+      <button className="balance-chip" onClick={onRewards} data-testid="balance-chip-button">
         <WalletCards size={20} />
         <span><small>رصيد البمبات</small><b>{bambaBalance.toLocaleString()}</b></span>
       </button>
-      <button className="app-brand" onClick={onHome}>
-        <BambaMark compact />
+      <button className="app-brand" onClick={onHome} data-testid="topbar-brand-button">
+        <BrandLogo size="xs" />
+        {/* نص الاسم بجانب الشعار للوصولية و SEO — الشعار نفسه صورة رسمية وليس نصاً */}
         <span>توقعات بمبا</span>
       </button>
       <div className="profile-actions">
-        <button className="icon-button notification-button"><Bell size={19} /><i /></button>
-        <button className="profile-chip" onClick={onProfile}>
+        <button className="icon-button notification-button" data-testid="notifications-button"><Bell size={19} /><i /></button>
+        <button className="profile-chip" onClick={onProfile} data-testid="profile-chip-button">
           <span><small>نقاطي</small><b>{userPoints}</b></span>
           <span className="avatar">أ</span>
           <ChevronDown size={16} />
         </button>
-        {showProfile && <ProfileMenu darkMode={darkMode} setDarkMode={setDarkMode} onSettings={onSettings} />}
+        {showProfile && <ProfileMenu darkMode={darkMode} setDarkMode={setDarkMode} onSettings={onSettings} onProfilePage={onProfilePage} />}
       </div>
     </header>
   );
 }
 
-function ProfileMenu({ darkMode, setDarkMode, onSettings }: { darkMode: boolean; setDarkMode: (v: boolean) => void; onSettings: () => void }) {
+function ProfileMenu({ darkMode, setDarkMode, onSettings, onProfilePage }: { darkMode: boolean; setDarkMode: (v: boolean) => void; onSettings: () => void; onProfilePage: () => void }) {
   return (
     <div className="profile-menu">
       <div className="menu-user">
         <span className="avatar large">أ</span>
         <div><b>أحمد بمبا</b><small>عضو منذ 2025</small></div>
       </div>
-      <button><User size={17} /> الملف الشخصي</button>
-      <button onClick={onSettings}><Settings size={17} /> الإعدادات</button>
+      <button onClick={onProfilePage} data-testid="open-profile-button"><User size={17} /> الملف الشخصي</button>
+      <button onClick={onSettings} data-testid="open-settings-button"><Settings size={17} /> الإعدادات</button>
       <button><Globe2 size={17} /> لغة التطبيق <span className="menu-value">العربية</span></button>
       <button onClick={() => setDarkMode(!darkMode)}>
         {darkMode ? <Sun size={17} /> : <Moon size={17} />} الوضع {darkMode ? 'النهاري' : 'الليلي'}
@@ -115,7 +148,7 @@ function ProfileMenu({ darkMode, setDarkMode, onSettings }: { darkMode: boolean;
       <button><Info size={17} /> معلومات المسابقة</button>
       <button><Share2 size={17} /> مشاركة التطبيق</button>
       <button><Info size={17} /> بيانات الاستخدام</button>
-      <button className="logout"><LogIn size={17} /> تسجيل الخروج</button>
+      <button className="logout" data-testid="profile-menu-logout-button"><LogIn size={17} /> تسجيل الخروج</button>
     </div>
   );
 }
@@ -151,7 +184,7 @@ export function PageHeading({ eyebrow, title, action }: { eyebrow: string; title
 export function SubPageHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <div className="subpage-header">
-      <button onClick={onBack}><ArrowRight size={20} /></button>
+      <button onClick={onBack} data-testid="subpage-back-button"><ArrowRight size={20} /></button>
       <h1>{title}</h1>
     </div>
   );
@@ -202,7 +235,7 @@ export function RewardsModal({ onClose, balance }: { onClose: () => void; balanc
           <button><CircleHelp size={20} /><span><b>جاوب واكسب</b><small>أسئلة رياضية يومية</small></span><ChevronLeft size={17} /></button>
           <button><Share2 size={20} /><span><b>شارك التطبيق</b><small>+100 بمبة لكل دعوة</small></span><ChevronLeft size={17} /></button>
         </div>
-        <button className="copy-code"><Copy size={16} /> انسخ كود الدعوة <b>BMBA427</b></button>
+        <button className="copy-code" data-testid="copy-invite-code-button"><Copy size={16} /> انسخ كود الدعوة <b>BMBA427</b></button>
       </div>
     </div>
   );

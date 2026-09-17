@@ -1,15 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 
+// تُقرأ من ملف .env — مفتاح anon عام ويظهر داخل كل نسخة منشورة من التطبيق.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
+// وضع آمن عند غياب الإعدادات (معاينة بدون .env): التطبيق يظل يعمل
+// وشاشة الدخول تشرح المشكلة بدلاً من الانهيار عند إنشاء العميل.
+export const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'public-anon-key-placeholder',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
   },
-});
+);
 
 export interface Profile {
   id: string;

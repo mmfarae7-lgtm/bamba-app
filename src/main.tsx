@@ -8,3 +8,12 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>
 );
+
+// PWA — تثبيت التطبيق على أندرويد وآيفون وأي جهاز حديث + العمل دون اتصال.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // التطبيق يعمل بشكل طبيعي حتى لو تعذر تسجيل الـ Service Worker
+    });
+  });
+}

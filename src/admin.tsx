@@ -20,7 +20,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
-import { BRAND } from './config/branding';
+import { BrandLogo } from './components';
 import { supabase } from './lib/supabase';
 import type { Profile } from './lib/supabase';
 
@@ -100,8 +100,8 @@ export function AdminPage({ profile, onBack }: { profile: Profile; onBack: () =>
     <div className="admin-shell" dir="rtl">
       <aside className={`admin-sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="admin-brand-row">
-          <div className="admin-brand-logo">
-            <img src={BRAND.logo} alt={BRAND.logoAlt} />
+          <div className="admin-brand-logo" data-testid="admin-brand-logo">
+            <BrandLogo size="sm" />
           </div>
           <div><b>BMBA Admin</b><small>مركز عمليات بمبا</small></div>
           <button className="admin-close-menu" onClick={() => setMenuOpen(false)} aria-label="إغلاق القائمة"><X size={20} /></button>

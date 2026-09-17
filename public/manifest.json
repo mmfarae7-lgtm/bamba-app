@@ -3,6 +3,7 @@
   "short_name": "BMBA",
   "description": "توقع نتائج مباريات كرة القدم ونافس واربح الجوائز",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f9d823",
   "theme_color": "#197b40",
@@ -11,10 +12,28 @@
   "lang": "ar",
   "icons": [
     {
-      "src": "/assets/branding/bmba-logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/assets/branding/bmba-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/branding/bmba-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/branding/bmba-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/assets/branding/bmba-logo.png",
+      "sizes": "2000x2000",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

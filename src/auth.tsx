@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Facebook, Loader2, Lock, Mail, MoreHorizontal, User } from 'lucide-react';
-import { BambaMark } from './components';
-import { supabase } from './lib/supabase';
+import { BrandLogo } from './components';
+import { supabase, supabaseConfigured } from './lib/supabase';
+
+// يحوّل المُعرّف إلى بريد تسجيل الدخول: يقبل البريد كما هو، أو اسم المستخدم
+// الخاص بالمدير العام "super_admin" ويحوله إلى بريد حسابه.
+const toAuthEmail = (identifier: string): string => {
+  const value = identifier.trim();
+  if (value.includes('@')) return value;
+  if (value.toLowerCase() === 'super_admin') return 'super_admin@bamba.app';
+  return value;
+};
 
 export function LoginStep({ onGuest, onSignup, onLoginSuccess }: { onGuest: () => void; onSignup: () => void; onLoginSuccess: () => void }) {
   const [email, setEmail] = useState('');
@@ -13,7 +22,12 @@ export function LoginStep({ onGuest, onSignup, onLoginSuccess }: { onGuest: () =
     if (!email.trim() || !password.trim()) return;
     setLoading(true);
     setError('');
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (!supabaseConfigured) {
+      setLoading(false);
+      setError('خدمة الحسابات غير مهيأة في هذه المعاينة — أضف مفاتيح Supabase في ملف .env');
+      return;
+    }
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email: toAuthEmail(email), password });
     setLoading(false);
     if (signInError) {
       setError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
@@ -24,21 +38,23 @@ export function LoginStep({ onGuest, onSignup, onLoginSuccess }: { onGuest: () =
 
   return (
     <div className="auth-card login-card">
-      <div className="mobile-mark"><BambaMark /></div>
+      <div className="mobile-mark" data-testid="login-brand-logo" style={{ display: 'flex', justifyContent: 'center' }}>
+        <BrandLogo size="lg" />
+      </div>
       <p className="eyebrow">أهلاً بعودتك</p>
       <h2>سجّل دخولك وابدأ التحدي</h2>
       <p className="auth-subtitle">ادخل ببياناتك للمتابعة إلى حسابك</p>
       <div className="login-form">
         <label className="login-field">
           <Mail size={17} />
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="البريد الإلكتروني" dir="ltr" />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="البريد الإلكتروني أو super_admin" dir="ltr" data-testid="login-email-input" />
         </label>
         <label className="login-field">
           <Lock size={17} />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="كلمة المرور" dir="ltr" onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="كلمة المرور" dir="ltr" onKeyDown={(e) => e.key === 'Enter' && handleLogin()} data-testid="login-password-input" />
         </label>
-        {error && <p className="login-error">{error}</p>}
-        <button className="primary-button" onClick={handleLogin} disabled={loading || !email.trim() || !password.trim()}>
+        {error && <p className="login-error" data-testid="login-error-message">{error}</p>}
+        <button className="primary-button" onClick={handleLogin} disabled={loading || !email.trim() || !password.trim()} data-testid="login-submit-button">
           {loading ? <><Loader2 size={18} className="spin" /> جاري الدخول...</> : <>تسجيل الدخول <ArrowLeft size={18} /></>}
         </button>
       </div>
@@ -49,7 +65,7 @@ export function LoginStep({ onGuest, onSignup, onLoginSuccess }: { onGuest: () =
         <button className="phone"><span>⌕</span> التسجيل برقم الهاتف</button>
       </div>
       <div className="or-divider"><span>أو</span></div>
-      <button className="guest-button" onClick={onGuest}><User size={18} /> الدخول كضيف <ArrowLeft size={16} /></button>
+      <button className="guest-button" onClick={onGuest} data-testid="guest-login-button"><User size={18} /> الدخول كضيف <ArrowLeft size={16} /></button>
       <p className="form-hint">الدخول كضيف يسمح لك بتصفح المباريات والبطولات فقط</p>
       <button className="text-button" onClick={onSignup}>ليس لديك حساب؟ <b>أنشئ حساباً الآن</b></button>
       <p className="step-count">02 <span>/ 03</span></p>
@@ -73,6 +89,11 @@ export function SignupStep({ onComplete, onBack }: { onComplete: () => void; onB
     if (!canSubmit) return;
     setLoading(true);
     setError('');
+    if (!supabaseConfigured) {
+      setLoading(false);
+      setError('خدمة الحسابات غير مهيأة في هذه المعاينة — أضف مفاتيح Supabase في ملف .env');
+      return;
+    }
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -100,7 +121,7 @@ export function SignupStep({ onComplete, onBack }: { onComplete: () => void; onB
 
   return (
     <div className="auth-card signup-card">
-      <button className="back-button" onClick={onBack}><ArrowRight size={17} /></button>
+      <button className="back-button" onClick={onBack} data-testid="signup-back-button"><ArrowRight size={17} /></button>
       <p className="eyebrow">خطوة أخيرة</p>
       <h2>أنشئ حسابك في بمبا</h2>
       <p className="auth-subtitle">أدخل معلوماتك حتى نتواصل معك عند الفوز</p>
@@ -119,7 +140,7 @@ export function SignupStep({ onComplete, onBack }: { onComplete: () => void; onB
         <label className="full-label">تاريخ الميلاد<input type="date" value={dob} onChange={(e) => setDob(e.target.value)} /></label>
       </div>
       {error && <p className="login-error">{error}</p>}
-      <button className="primary-button" disabled={!canSubmit || loading} onClick={handleSignup}>
+      <button className="primary-button" disabled={!canSubmit || loading} onClick={handleSignup} data-testid="signup-submit-button">
         {loading ? <><Loader2 size={18} className="spin" /> جاري الإنشاء...</> : <>إنشاء الحساب <ArrowLeft size={18} /></>}
       </button>
       <p className="step-count">03 <span>/ 03</span></p>
