@@ -10,9 +10,6 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  optimizeDeps: {
-    exclude: ['lucide-react'],
-  },
   // بيئة الاستضافة تمرر HOST و PORT كمتغيرات بيئة — بدونها يعمل التطوير على 5173 محلياً
   server: {
     host: process.env.HOST || true,
