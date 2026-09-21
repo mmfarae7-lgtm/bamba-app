@@ -1,0 +1,48 @@
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.env
+
+# نسخة ZIP المولدة للتنزيل المباشر — تُعاد توليدها من آخر commit ولا تُرفع للمستودع
+/public/downloads/
+
+# ملف الإعداد المجمّع لقاعدة البيانات — يستخدم من اللوحة فقط ولا يُرفع للمستودع
+/setup-database.sql
+
+.vercel
+.env.*
+!.env.example
+
+# بيانات بناء Android — لا تُرفع
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/captures/
+android/.externalNativeBuild/
+*.keystore
+*.jks
+
+# ملفات وسيطة
+*.tsbuildinfo
+android/build-log.txt

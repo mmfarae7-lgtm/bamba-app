@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">بمبا توقعات</string>
+    <string name="title_activity_main">بمبا توقعات</string>
+    <string name="package_name">com.bmba.predictions</string>
+    <string name="custom_url_scheme">com.bmba.predictions</string>
+</resources>
