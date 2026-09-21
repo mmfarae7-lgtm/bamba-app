@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "cap:sync": "npm run build && cap sync android",
     "apk:add": "cap add android",
-    "apk:build": "npm run build && cap sync android && cd android && gradlew.bat assembleRelease"
+    "apk:build": "npm run build && cap sync android && cd android && gradlew.bat assembleRelease && cd .. && copy /Y android\\app\\build\\outputs\\apk\\release\\app-release.apk public\\apk\\bamba-app.apk && npm run build"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

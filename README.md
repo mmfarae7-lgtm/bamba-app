@@ -57,21 +57,29 @@
 - **آيفون/آيباد (سفاري):** زر المشاركة ← "إضافة إلى الشاشة الرئيسية"
 - **ويندوز (إيدج/كروم):** القائمة ⋯ ← "التطبيقات" ← "تثبيت هذا الموقع كتطبيق" (أو زر التثبيت في شريط العنوان)
 
-## بناء APK (أندرويد)
+## تنزيل APK وتثبيته (أندرويد)
 
-مشروع Capacitor جاهز في مجلد `android/` بأيقونة وشاشة بداية بمبا:
-تتطلب الخطوة الأخيرة جهازاً فيه **جافا + Android Studio SDK** (لم تُبنَ هنا لعدم وجود SDK بيئة التطوير):
+تطبيق بمبا جاهز **كملف APK موقّع** (خاص بالجوالات الأندرويد):
 
-1. ثبّت [Android Studio](https://developer.android.com/studio) مع SDK Platform 34+ وJava 17 (يزوّد المشروع بهما تلقائياً)
+- **رابط التحميل المباشر:** `https://bomba-app-second.vercel.app/apk/bamba-app.apk` (~6MB)
+- عند التثبيت اسمح بـ "التثبيت من مصادر غير معروفة" إذا طلب الجوال ذلك
+- آيفون/آيباد والكمبيوتر (ويندوز/ماك): لا يُثبَّت APK — استخدم تثبيت PWA أعلاه
+
+## بناء APK من المصدر (اختياري)
+
+مشروع Capacitor جاهز في مجلد `android/` بأيقونة وشاشة بداية بمبا. البنية تتطلب Java 21 وAndroid SDK (Platform 36 + Build Tools 36):
+
+1. ثبّت Java 21 (مثل [Temurin](https://adoptium.net)) و[Android cmdline-tools](https://developer.android.com/studio#command-line-tools-only)، وثبّت `platforms;android-36` و`build-tools;36.0.0`
 2. في جذر المشروع:
    ```
    npm install
    npm run apk:build
    ```
-   (أمر `apk:build` = build + `cap sync android` + `gradlew assembleRelease`)
+   (`apk:build` = build + `cap sync android` + `gradlew assembleRelease` ثم نسخ الناتج إلى `public/apk/bamba-app.apk`)
 3. ملف التثبيت الناتج: `android/app/build/outputs/apk/release/app-release.apk`
+   - موقّع تلقائيًا عبر `android/keystore.properties` (أنشئه من مفاتيحك؛ مستبعد من Git)
    - انقله للجوال (أو `adb install`) وتثبيته يضع أيقونة بمبا الرسمية
-4. للتوقيع بدار التطبيقات (Google Play) استخدم Capacitor Docs لتوقيع Release properly
+4. للتوقيع بدار التطبيقات (Google Play) استخدم المفتاح نفسه بصلاحية أطول
 
 > أيقونة الأيقونات تُؤخذ من `scripts/set-android-logo.mjs` (تنسخ شعار بمبا لمجلدات المايبمابات) —
 > أعد تشغيله بعد تغيير الشعار الرسمي: `node scripts/set-android-logo.mjs`

@@ -1,0 +1,27 @@
+# قواعد رفع Vercel (توزيع الويب فقط — لا يُبنى أندرويد هنا)
+node_modules
+dist
+dist-ssr
+.env
+.env.*
+!.env.example
+*.local
+.vercel
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+*.tsbuildinfo
+setup-database.sql
+/public/downloads/
+.vscode
+.idea
+.DS_Store
+
+# مشروع Android كامل — لا حاجة له في توزيع الويب
+android/
+
+# مفاتيح التوقيع — لا تُرفع أبدًا
+*.keystore
+*.jks
+android/keystore.properties
