@@ -46,3 +46,5 @@ android/.externalNativeBuild/
 # ملفات وسيطة
 *.tsbuildinfo
 android/build-log.txt
+android/keystore.properties
+/public/apk/
