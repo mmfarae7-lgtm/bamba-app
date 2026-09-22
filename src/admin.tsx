@@ -128,27 +128,52 @@ export function AdminPage({ profile, onBack }: { profile: Profile; onBack: () =>
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // السوبر أدمن يملك كل الصلاحيات قطعيًا — نعرض اللوحة فورًا دون أي انتظار لطلب شبكة.
+    if (profile.role === 'super_admin') {
+      setPerms({
+        is_super: true,
+        role: 'super_admin',
+        roles: ['super_admin'],
+        permissions: [],
+        read_modules: ['*'],
+        write_modules: ['*'],
+      });
+      setLoading(false);
+      setError('');
+      return;
+    }
+    // بقية الأدوار: نعرض النسخة الأساسية فورًا، ثم نثريها بالصلاحيات التفصيلية عبر RPC
+    // مع مصيدة أخطاء ومهلة أمان — لا تتجمد الشاشة على «جاري فحص...» في أي حال.
+    setPerms({
+      is_super: false,
+      role: profile.role,
+      roles: profile.role && profile.role !== 'user' ? [profile.role] : [],
+      permissions: [],
+      read_modules: [],
+      write_modules: [],
+    });
     let mounted = true;
-    void (async () => {
-      const { data, error: rpcError } = await supabase.rpc('admin_my_permissions');
-      if (rpcError || !data) {
-        // مسار احتياطي: نبدأ من دور الملف الشخصي فقط
-        const isSuper = profile.role === 'super_admin';
-        setPerms({
-          is_super: isSuper,
-          role: profile.role,
-          roles: isSuper ? ['super_admin'] : [profile.role],
-          permissions: [],
-          read_modules: isSuper ? ['*'] : [],
-          write_modules: isSuper ? ['*'] : [],
-        });
-        setError(rpcError ? 'تعذر تحميل الصلاحيات التفصيلية — يعمل النظام بالصلاحيات الأساسية.' : '');
+    const timer = window.setTimeout(() => {
+      if (!mounted) return;
+      setLoading(false);
+      setError('تعذر تحميل الصلاحيات التفصيلية — يعمل النظام بالصلاحيات الأساسية.');
+    }, 8000);
+    const rpc = supabase
+      .rpc('admin_my_permissions')
+      .then((result) => ({ ok: true as const, result }))
+      .catch(() => ({ ok: false as const, result: null }));
+    void rpc.then(({ ok, result }) => {
+      if (!mounted) return;
+      window.clearTimeout(timer);
+      if (ok && !result.error && result.data) {
+        setPerms(result.data as AdminPerms);
+        setError('');
       } else {
-        setPerms(data as AdminPerms);
+        setError('تعذر تحميل الصلاحيات التفصيلية — يعمل النظام بالصلاحيات الأساسية.');
       }
-      if (mounted) setLoading(false);
-    })();
-    return () => { mounted = false; };
+      setLoading(false);
+    });
+    return () => { mounted = false; window.clearTimeout(timer); };
   }, [profile.role]);
 
   const sectionAllowed = (id: AdminSection): boolean => {
@@ -263,25 +288,29 @@ function AdminDashboard({ onSection, perms, can }: { onSection: (s: AdminSection
   useEffect(() => {
     let mounted = true;
     void (async () => {
-      const canUsers = can('users.view') || can('support.view');
-      const [profilesRes, paymentsRes, supportRes, logsRes] = await Promise.all([
-        canUsers ? supabase.from('profiles').select('id, username, email, role, bamba_balance, user_points, country, created_at').order('created_at', { ascending: false }).limit(100) : Promise.resolve({ data: [] as Profile[], error: null }),
-        can('payments.view') ? supabase.from('payments').select('id, status').limit(1000) : Promise.resolve({ data: [] as Array<{ id: string; status: string }>, error: null }),
-        can('support.view') ? supabase.from('support_tickets').select('id, status').limit(1000) : Promise.resolve({ data: [] as Array<{ id: string; status: string }>, error: null }),
-        (perms?.is_super || can('audit.view')) ? supabase.from('admin_audit_logs').select('id, action, resource, reason, created_at').order('created_at', { ascending: false }).limit(12) : Promise.resolve({ data: [] as Array<{ id: string; action: string; resource: string; reason: string | null; created_at: string }>, error: null }),
-      ]);
-      if (!mounted) return;
-      const userRows = (profilesRes.data ?? []) as Profile[];
-      setUsers(userRows);
-      setLogs((logsRes.data ?? []) as typeof logs);
-      setStats({
-        users: userRows.length,
-        admins: userRows.filter((u) => u.role !== 'user').length,
-        bamba: userRows.reduce((s, u) => s + u.bamba_balance, 0),
-        points: userRows.reduce((s, u) => s + u.user_points, 0),
-        pendingPayments: (paymentsRes.data ?? []).filter((p) => p.status === 'pending').length,
-        openTickets: (supportRes.data ?? []).filter((t) => ['new', 'in_progress'].includes(t.status)).length,
-      });
+      try {
+        const canUsers = can('users.view') || can('support.view');
+        const [profilesRes, paymentsRes, supportRes, logsRes] = await Promise.all([
+          canUsers ? supabase.from('profiles').select('id, username, email, role, bamba_balance, user_points, country, created_at').order('created_at', { ascending: false }).limit(100) : Promise.resolve({ data: [] as Profile[], error: null }),
+          can('payments.view') ? supabase.from('payments').select('id, status').limit(1000) : Promise.resolve({ data: [] as Array<{ id: string; status: string }>, error: null }),
+          can('support.view') ? supabase.from('support_tickets').select('id, status').limit(1000) : Promise.resolve({ data: [] as Array<{ id: string; status: string }>, error: null }),
+          (perms?.is_super || can('audit.view')) ? supabase.from('admin_audit_logs').select('id, action, resource, reason, created_at').order('created_at', { ascending: false }).limit(12) : Promise.resolve({ data: [] as Array<{ id: string; action: string; resource: string; reason: string | null; created_at: string }>, error: null }),
+        ]);
+        if (!mounted) return;
+        const userRows = (profilesRes.data ?? []) as Profile[];
+        setUsers(userRows);
+        setLogs((logsRes.data ?? []) as typeof logs);
+        setStats({
+          users: userRows.length,
+          admins: userRows.filter((u) => u.role !== 'user').length,
+          bamba: userRows.reduce((s, u) => s + u.bamba_balance, 0),
+          points: userRows.reduce((s, u) => s + u.user_points, 0),
+          pendingPayments: (paymentsRes.data ?? []).filter((p) => p.status === 'pending').length,
+          openTickets: (supportRes.data ?? []).filter((t) => ['new', 'in_progress'].includes(t.status)).length,
+        });
+      } catch {
+        // خطأ اتصال مؤقت — تبقى البطاقات بقيمها الصفرية عوضًا عن تعليق لوحة التحكم
+      }
     })();
     return () => { mounted = false; };
   }, [perms?.is_super]);
