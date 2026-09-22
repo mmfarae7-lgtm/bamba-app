@@ -1436,7 +1436,10 @@ function AdminSecuritySection({ can }: { can: (k: string) => boolean }) {
     const { data, error } = await supabase.rpc('create_approval_request', {
       p_request_type: form.type, p_resource_type: form.resource, p_resource_id: resourceId || null, p_reason: form.reason.trim(), p_request_data: requestData,
     });
-    if (error || !data || (data as { error?: string }).error) { setMsg(`فشل إنشاء الطلب: ${error?.message ?? (data as { error?: string }).error ?? 'تحقق من الصلاحيات'}`); return; }
+    if (error || !data || (data as { error?: string }).error) {
+      const derr = data as { error?: string; message?: string; retry_after?: number };
+      setMsg(`فشل إنشاء الطلب: ${derr.message ?? derr.error ?? error?.message ?? 'تحقق من الصلاحيات'}${derr.retry_after ? ` — حاول بعد ${derr.retry_after} ثانية` : ''}`); return;
+    }
     setMsg('تم إنشاء طلب الاعتماد — يراجعه مدير آخر (Maker → Checker) ثم يُنفَّذ عبر زر «تنفيذ» ✓');
     setForm({ ...form, reason: '', resourceId: '', amount: '', homeScore: '', awayScore: '' });
     void load();
