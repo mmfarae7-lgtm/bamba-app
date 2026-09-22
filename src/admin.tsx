@@ -6,6 +6,7 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  CalendarDays,
   CheckCircle2,
   ChevronLeft,
   CircleDollarSign,
@@ -24,6 +25,7 @@ import {
   Megaphone,
   Package,
   Plus,
+  RefreshCw,
   Search,
   Send,
   Settings,
@@ -41,6 +43,7 @@ import {
 import { BrandLogo } from './components';
 import { StoreSection } from './store-admin';
 import { loadAllMatches } from './lib/matches';
+import { fetchFixtures, fixturesApiConfigured } from './lib/fixtures';
 import { supabase } from './lib/supabase';
 import type { Profile } from './lib/supabase';
 import type { Match } from './types';
@@ -440,6 +443,26 @@ function AdminUsers({ can }: { can: (k: string) => boolean }) {
 
 const CREATE_LEAGUES = ['الدوري الإنجليزي', 'الدوري الإسباني', 'الدوري الإيطالي', 'الدوري الألماني', 'الدوري الفرنسي', 'دوري أبطال أوروبا', 'الدوري الأوروبي', 'دوري روشن السعودي'];
 
+// أدوات تواريخ محلية — لا تعتمد على المناطق الزمنية للخادم
+const isoToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const addDaysTo = (iso: string, n: number) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  const c = new Date(y, m - 1, d);
+  c.setDate(c.getDate() + n);
+  return `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, '0')}-${String(c.getDate()).padStart(2, '0')}`;
+};
+const dayLabel = (key: string) => {
+  const t = isoToday();
+  if (key === t) return 'اليوم';
+  if (key === addDaysTo(t, 1)) return 'غداً';
+  if (key === '—') return 'بدون تاريخ';
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' });
+};
+
 function AdminMatchesSection({ canWrite }: { canWrite: (m: string) => boolean }) {
   const [allMatches, setAllMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
@@ -448,8 +471,9 @@ function AdminMatchesSection({ canWrite }: { canWrite: (m: string) => boolean })
   const [busyId, setBusyId] = useState<number | null>(null);
   const [msg, setMsg] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ league: CREATE_LEAGUES[0], home: '', away: '', homeShort: '', awayShort: '', time: '21:00', points: '3', featured: false });
+  const [form, setForm] = useState({ league: CREATE_LEAGUES[0], home: '', away: '', homeShort: '', awayShort: '', time: '21:00', points: '3', featured: false, date: 'today' as 'today' | 'tomorrow' | 'custom', customDate: '' });
   const [creating, setCreating] = useState(false);
+  const [syncing, setSyncing] = useState<'today' | 'tomorrow' | null>(null);
   const canCreate = canWrite('matches');
   const canScore = canWrite('matches') || canWrite('points') || canWrite('prediction_points');
 
@@ -486,42 +510,102 @@ function AdminMatchesSection({ canWrite }: { canWrite: (m: string) => boolean })
     setMsg(res ? `تم اعتماد نتيجة المباراة #${id}: ${res.scored_predictions} توقع عام (${res.points_awarded} نقطة) + ${res.arena_scored ?? 0} توقع داخل الحلبات (${res.arena_points_awarded ?? 0} نقطة).` : 'تم اعتماد النتيجة تلقائياً.');
   };
 
-  const createTodayMatch = async () => {
+  const createMatch = async () => {
     if (!form.home.trim() || !form.away.trim()) { setMsg('أدخل اسمي الفريقين أولاً'); return; }
+    let fieldDate = isoToday();
+    if (form.date === 'tomorrow') fieldDate = addDaysTo(fieldDate, 1);
+    else if (form.date === 'custom') {
+      if (!form.customDate) { setMsg('اختر التاريخ المخصص أولاً'); return; }
+      fieldDate = form.customDate;
+    }
     setCreating(true); setMsg('');
     const { data, error } = await supabase.rpc('admin_create_match', {
       p_league: form.league, p_home: form.home.trim(), p_away: form.away.trim(),
       p_home_short: form.homeShort.trim(), p_away_short: form.awayShort.trim(),
       p_time: form.time, p_points: Number(form.points) || 3, p_featured: form.featured,
+      p_match_date: fieldDate,
     });
     setCreating(false);
     if (error || !data || (data as { error?: string }).error) { setMsg(`تعذر إنشاء المباراة: ${error?.message ?? 'لا تملك صلاحية المشرف'}`); return; }
     setShowCreate(false);
-    setForm({ league: CREATE_LEAGUES[0], home: '', away: '', homeShort: '', awayShort: '', time: '21:00', points: '3', featured: false });
+    setForm({ league: CREATE_LEAGUES[0], home: '', away: '', homeShort: '', awayShort: '', time: '21:00', points: '3', featured: false, date: 'today', customDate: '' });
     await refresh();
-    setMsg('تمت إضافة المباراة وستظهر فوراً في صفحة توقعات الأعضاء وجميع حلباتهم ✓');
+    setMsg(`تمت إضافة المباراة ليوم ${dayLabel(fieldDate)} وستظهر فوراً في صفحة توقعات الأعضاء وجميع حلباتهم ✓`);
   };
 
-  const deleteTodayMatch = async (id: number) => {
-    if (!window.confirm('حذف هذه المباراة من قائمة مباريات اليوم؟')) return;
+  const syncFromApi = async (day: 'today' | 'tomorrow') => {
+    const base = day === 'tomorrow' ? addDaysTo(isoToday(), 1) : isoToday();
+    setSyncing(day); setMsg('');
+    try {
+      const fixtures = await fetchFixtures(base, base);
+      if (fixtures.length === 0) {
+        setMsg(
+          fixturesApiConfigured
+            ? `مصدر المباريات لم يُرجع أي مباراة ليوم ${dayLabel(base)} (${base}).`
+            : 'مصدر المباريات غير مربوط بعد — أضف VITE_FIXTURES_API_URL في ملف .env ثم أعد البناء، وكرر المزامنة.'
+        );
+        return;
+      }
+      const { data, error } = await supabase.rpc('admin_upsert_fixtures', { p_fixtures: fixtures });
+      if (error) { setMsg(`فشلت المزامنة: ${error.message}`); return; }
+      const res = data as { inserted?: number; duplicates?: number } | null;
+      await refresh();
+      setMsg(`تمت مزامنة ${fixtures.length} مباراة ليوم ${dayLabel(base)} (جديدة: ${res?.inserted ?? fixtures.length}، مكررة: ${res?.duplicates ?? 0}) — جدول التوقعات جاهز ✓`);
+    } catch (e) {
+      setMsg(`فشل الاتصال بمصدر المباريات: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSyncing(null);
+    }
+  };
+
+  const deleteMatch = async (id: number) => {
+    if (!window.confirm('حذف هذه المباراة نهائياً؟')) return;
     const { error } = await supabase.rpc('admin_delete_match', { p_match_id: id });
     if (error) { setMsg(`تعذر الحذف: ${error.message}`); return; }
     await refresh();
-    setMsg('تم حذف المباراة من قائمة اليوم.');
+    setMsg('تم حذف المباراة.');
   };
+
+  // تجميع المباريات حسب التاريخ الفعلي (اليوم / غداً / أي تاريخ)
+  const groups = allMatches.reduce<Record<string, Match[]>>((acc, m) => {
+    const key = m.matchDate ?? '—';
+    (acc[key] ??= []).push(m);
+    return acc;
+  }, {});
+  const groupKeys = Object.keys(groups).sort((a, b) => (a === '—' ? 1 : b === '—' ? -1 : a.localeCompare(b)));
 
   return (
     <div className="admin-content">
-      <div className="admin-section-intro"><div><span className="eyebrow">إدارة المباريات</span><h2>مباريات اليوم والنقاط</h2><p>أنشئ مباريات اليوم، وعند اعتماد النتيجة تُحتسب نقاط التوقعات العامة ونقاط الحلبات معاً تلقائياً.</p></div>
-        {canCreate && <button className="admin-create-btn" onClick={() => setShowCreate(true)}><Plus size={17} /> إنشاء مباراة اليوم</button>}
+      <div className="admin-section-intro"><div><span className="eyebrow">إدارة المباريات</span><h2>مباريات اليوم وغداً والنقاط</h2><p>أنشئ مباريات اليوم أو غداً يدوياً، أو ثبّت جدول التوقعات مباشرة من مصدر الـAPI. عند اعتماد النتيجة تُحتسب نقاط التوقعات العامة ونقاط الحلبات معاً تلقائياً.</p></div>
+        {canCreate && (
+          <div className="admin-inline-actions">
+            <button className="admin-create-btn" onClick={() => setShowCreate(true)}><Plus size={17} /> إنشاء مباراة</button>
+            <button className="admin-sync-btn" onClick={() => void syncFromApi('today')} disabled={syncing !== null}>
+              {syncing === 'today' ? <><Loader2 size={16} className="spin" /> جاري المزامنة...</> : <><RefreshCw size={16} /> جدول اليوم من الـAPI</>}
+            </button>
+            <button className="admin-sync-btn" onClick={() => void syncFromApi('tomorrow')} disabled={syncing !== null}>
+              {syncing === 'tomorrow' ? <><Loader2 size={16} className="spin" /> جاري المزامنة...</> : <><CalendarDays size={16} /> جدول الغد من الـAPI</>}
+            </button>
+          </div>
+        )}
       </div>
       {msg && <AdminFlash msg={msg} />}
 
       {showCreate && canCreate && (
         <section className="admin-panel admin-create-match">
-          <div className="admin-panel-heading"><div><span className="eyebrow">مباراة جديدة</span><h3>مباراة توقعات لهذا اليوم</h3></div><button className="modal-close" onClick={() => setShowCreate(false)}><X size={17} /></button></div>
+          <div className="admin-panel-heading"><div><span className="eyebrow">مباراة جديدة</span><h3>مباراة توقعات (اليوم / غداً / مخصص)</h3></div><button className="modal-close" onClick={() => setShowCreate(false)}><X size={17} /></button></div>
           <div className="admin-create-grid">
             <label>البطولة<select value={form.league} onChange={(e) => setForm({ ...form, league: e.target.value })}>{CREATE_LEAGUES.map((l) => <option key={l}>{l}</option>)}</select></label>
+            <label>تاريخ المباراة*
+              <select value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value as typeof form.date })}>
+                <option value="today">اليوم</option>
+                <option value="tomorrow">غداً</option>
+                <option value="custom">تاريخ مخصص</option>
+              </select>
+            </label>
+            {form.date === 'custom' && (
+              <label>التاريخ المحدد<input type="date" value={form.customDate} min={isoToday()} onChange={(e) => setForm({ ...form, customDate: e.target.value })} /></label>
+            )}
             <label>الفريق المضيف *<input value={form.home} onChange={(e) => setForm({ ...form, home: e.target.value })} placeholder="مثال: ريال مدريد" /></label>
             <label>الفريق الضيف *<input value={form.away} onChange={(e) => setForm({ ...form, away: e.target.value })} placeholder="مثال: برشلونة" /></label>
             <label>اختصار المضيف<input value={form.homeShort} onChange={(e) => setForm({ ...form, homeShort: e.target.value })} placeholder="ر م" maxLength={3} /></label>
@@ -530,45 +614,51 @@ function AdminMatchesSection({ canWrite }: { canWrite: (m: string) => boolean })
             <label>نقاط التوقع<input type="number" min={1} max={10} value={form.points} onChange={(e) => setForm({ ...form, points: e.target.value })} /></label>
             <label className="admin-create-fixture"><input type="checkbox" checked={form.featured} onChange={(e) => setForm({ ...form, featured: e.target.checked })} /> مباراة نارية (نقاط مضاعفة)</label>
           </div>
-          <button className="admin-approve-btn" disabled={creating} onClick={() => void createTodayMatch()}>{creating ? <><Loader2 size={16} className="spin" /> جاري الإضافة...</> : <><Plus size={16} /> إضافة المباراة لليوم</>}</button>
+          <button className="admin-approve-btn" disabled={creating} onClick={() => void createMatch()}>{creating ? <><Loader2 size={16} className="spin" /> جاري الإضافة...</> : <><Plus size={16} /> إضافة المباراة</>}</button>
         </section>
       )}
 
       <div className="admin-section-intro admin-sub-intro"><span className="eyebrow">اعتماد النتائج</span><h3>احتساب نقاط المباريات</h3><p>نتيجة صحيحة 3 نقاط (نارية 5) • فائز صحيح 1 (نارية 2) • النتيجة النادرة +1 — يُطبَّق على التوقعات العامة ونقاط الحلبات.</p></div>
 
       {loading ? (
-        <div className="admin-loading"><Loader2 size={22} className="spin" /><p>جاري تحميل مباريات اليوم...</p></div>
-      ) : allMatches.length === 0 ? (
-        <AdminEmpty text="لا توجد مباريات — أنشئ مباراة اليوم من الزر أعلاه" />
+        <div className="admin-loading"><Loader2 size={22} className="spin" /><p>جاري تحميل المباريات...</p></div>
+      ) : groupKeys.length === 0 ? (
+        <AdminEmpty text="لا توجد مباريات — أنشئ مباراة اليوم/غداً أو ثبّت الجدول من الـAPI" />
       ) : (
-        allMatches.map((m) => {
-          const isScored = Boolean(scores[m.id]);
-          const isDynamic = m.id >= 1000;
-          const inp = inputs[m.id] ?? { home: '', away: '', fixture: Boolean(m.featured) };
-          const canTouch = canScore || isDynamic;
-          return (
-            <section className="admin-panel admin-match-approve" key={m.id}>
-              <div className="admin-match-title">
-                <div className="admin-match-teams"><b>{m.home}</b><span>ضد</span><b>{m.away}</b></div>
-                <div className="admin-match-meta-row"><span className="admin-match-meta">{m.league} · {m.time} {m.featured ? '· 🔥 نارية' : ''}</span>
-                  {isDynamic && <span className="admin-dynamic-tag">مباراة اليوم</span>}
-                  {isDynamic && canWrite('matches') && <button className="admin-remove-match" onClick={() => void deleteTodayMatch(m.id)} title="حذف المباراة"><Trash2 size={14} /> حذف</button>}
-                </div>
-              </div>
-              {canTouch && (
-                <div className="admin-score-inputs">
-                  <label>أهداف {m.homeShort}<input type="number" min={0} max={99} value={isScored ? String(scores[m.id].home) : inp.home} onChange={(e) => setInputs({ ...inputs, [m.id]: { ...inp, home: e.target.value } })} disabled={busyId === m.id} /></label>
-                  <span>-</span>
-                  <label>أهداف {m.awayShort}<input type="number" min={0} max={99} value={isScored ? String(scores[m.id].away) : inp.away} onChange={(e) => setInputs({ ...inputs, [m.id]: { ...inp, away: e.target.value } })} disabled={busyId === m.id} /></label>
-                  <label className="admin-fixture"><input type="checkbox" checked={isScored ? scores[m.id].isFixture : inp.fixture} onChange={(e) => setInputs({ ...inputs, [m.id]: { ...inp, fixture: e.target.checked } })} disabled={busyId === m.id} /> مباراة نارية</label>
-                </div>
-              )}
-              <button className="admin-approve-btn" onClick={() => void approve(m.id)} disabled={busyId === m.id}>
-                {busyId === m.id ? <><Loader2 size={16} className="spin" /> جاري الاحتساب...</> : isScored ? <><CheckCircle2 size={16} /> إعادة الاعتماد بنتيجة جديدة</> : <><Trophy size={16} /> اعتماد النتيجة وحساب النقاط</>}
-              </button>
-            </section>
-          );
-        })
+        groupKeys.map((key) => (
+          <div className="admin-day-group" key={key}>
+            <div className="admin-day-title"><CalendarDays size={16} /> {dayLabel(key)} <span>{groups[key].length} مباراة</span></div>
+            {groups[key].map((m) => {
+              const isScored = Boolean(scores[m.id]);
+              const isDynamic = m.id >= 1000;
+              const inp = inputs[m.id] ?? { home: '', away: '', fixture: Boolean(m.featured) };
+              const canTouch = canScore || isDynamic;
+              return (
+                <section className="admin-panel admin-match-approve" key={m.id}>
+                  <div className="admin-match-title">
+                    <div className="admin-match-teams"><b>{m.home}</b><span>ضد</span><b>{m.away}</b></div>
+                    <div className="admin-match-meta-row"><span className="admin-match-meta">{m.league} · {m.time} {m.matchDate ? `· ${m.matchDate}` : ''} {m.featured ? '· 🔥 نارية' : ''}</span>
+                      {isDynamic && <span className="admin-dynamic-tag">مباراة حقيقية</span>}
+                      {m.demo && <span className="admin-dynamic-tag">تجريبية</span>}
+                      {isDynamic && canWrite('matches') && <button className="admin-remove-match" onClick={() => void deleteMatch(m.id)} title="حذف المباراة"><Trash2 size={14} /> حذف</button>}
+                    </div>
+                  </div>
+                  {canTouch && (
+                    <div className="admin-score-inputs">
+                      <label>أهداف {m.homeShort}<input type="number" min={0} max={99} value={isScored ? String(scores[m.id].home) : inp.home} onChange={(e) => setInputs({ ...inputs, [m.id]: { ...inp, home: e.target.value } })} disabled={busyId === m.id} /></label>
+                      <span>-</span>
+                      <label>أهداف {m.awayShort}<input type="number" min={0} max={99} value={isScored ? String(scores[m.id].away) : inp.away} onChange={(e) => setInputs({ ...inputs, [m.id]: { ...inp, away: e.target.value } })} disabled={busyId === m.id} /></label>
+                      <label className="admin-fixture"><input type="checkbox" checked={isScored ? scores[m.id].isFixture : inp.fixture} onChange={(e) => setInputs({ ...inputs, [m.id]: { ...inp, fixture: e.target.checked } })} disabled={busyId === m.id} /> مباراة نارية</label>
+                    </div>
+                  )}
+                  <button className="admin-approve-btn" onClick={() => void approve(m.id)} disabled={busyId === m.id}>
+                    {busyId === m.id ? <><Loader2 size={16} className="spin" /> جاري الاحتساب...</> : isScored ? <><CheckCircle2 size={16} /> إعادة الاعتماد بنتيجة جديدة</> : <><Trophy size={16} /> اعتماد النتيجة وحساب النقاط</>}
+                  </button>
+                </section>
+              );
+            })}
+          </div>
+        ))
       )}
     </div>
   );

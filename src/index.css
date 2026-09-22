@@ -1063,3 +1063,28 @@ label .optional { display: inline; font-size: 10px; color: #9aa69d; font-weight:
 .admin-perm-chips span { display: inline-flex; align-items: center; background: #eef5ee; color: #2a5c3a; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; direction: ltr; }
 .admin-settings-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .admin-dashboard-grid .admin-panel { min-width: 0; }
+
+/* ===== رجوع موحّد على تبويبات الرئيسية ===== */
+.tab-back-bar { padding: 2px 0 6px; }
+.tab-back { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e1e9e1; background: #fff; color: #197b40; border-radius: 999px; padding: 7px 14px; font: 700 12.5px inherit; cursor: pointer; box-shadow: 0 3px 10px #173b2210; }
+.tab-back:active { transform: translateY(1px); }
+.dark .tab-back { background: #193025; border-color: #2b4a36; color: #9fe3b8; }
+
+/* شارة «تجريبية» على المباريات الثابتة حتى ربط الـAPI */
+.demo-tag { background: #fdf3d7; color: #8a6d1a; border-radius: 999px; padding: 2px 8px; font-size: 10px; font-weight: 800; line-height: 1.6; }
+.dark .demo-tag { background: #3a3016; color: #f4d978; }
+
+/* أزرار مزامنة الـAPI في لوحة المباريات */
+.admin-inline-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.admin-sync-btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #cfe3d4; background: #f1faf3; color: #197b40; border-radius: 10px; padding: 9px 14px; font: 700 12.5px inherit; cursor: pointer; }
+.admin-sync-btn:hover { background: #e4f5e8; }
+.admin-sync-btn:disabled { opacity: .6; cursor: default; }
+.dark .admin-sync-btn { background: #16271c; border-color: #2b4a36; color: #9fe3b8; }
+.dark .admin-sync-btn:hover { background: #1c3324; }
+
+/* تجميع مباريات اللوحة حسب التاريخ */
+.admin-day-group { display: grid; gap: 10px; margin-bottom: 22px; }
+.admin-day-title { display: flex; align-items: center; gap: 8px; font: 800 15px inherit; color: #243a2c; margin: 6px 0 2px; }
+.admin-day-title span { font-size: 11px; color: #8b978e; font-weight: 700; }
+.dark .admin-day-title { color: #dceade; }
+.dark .admin-day-title span { color: #8aaa97; }

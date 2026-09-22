@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, CircleDot, Loader2, Lock } from 'lucide-react';
+import { ArrowRight, Bell, CircleDot, Loader2, Lock } from 'lucide-react';
 import type { Tab, AuthStep, Page, Match } from './types';
 import { BottomNav, BrandLogo, PredictionModal, ProfileMenu, TopBar } from './components';
 import { LanguageStep, LoginStep, SignupStep } from './auth';
@@ -615,6 +615,12 @@ function App() {
       />
 
       <main className="content-area">
+        {/* طريق رجوع موحّد: كل تبويب غير «المباريات» يعرض زر عودة للصفحة السابقة */}
+        {page === 'main' && tab !== 'matches' && (
+          <div className="tab-back-bar">
+            <button className="tab-back" onClick={() => setTab('matches')} data-testid="tab-back-button"><ArrowRight size={17} /> رجوع للمباريات</button>
+          </div>
+        )}
         {page === 'main' && tab === 'matches' && (
           <MatchesPage predictions={predictions} onPredict={handlePredict} onMatchClick={goMatchDetails} />
         )}

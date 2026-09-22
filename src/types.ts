@@ -20,6 +20,12 @@ export interface Match {
   awayGoals?: number;
   correctPct?: number;
   wrongPct?: number;
+  /** التاريخ الفعلي للمباراة بصيغة YYYY-MM-DD (للمباريات الحقيقية/الديناميكية من اللوحة والـAPI) */
+  matchDate?: string;
+  /** مباراة تجريبية ثابتة — تظهر مؤقتاً حتى ربط مصدر الـAPI الفعلي */
+  demo?: boolean;
+  /** معرّف المباراة لدى مصدر الـAPI الخارجي (لمنع التكرار) */
+  externalId?: string;
 }
 
 export interface TeamStanding {

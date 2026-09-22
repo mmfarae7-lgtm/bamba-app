@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { Match } from './types';
 import { useMatches } from './lib/matches';
-import { PageHeading, CalendarModal } from './components';
+import { PageHeading, CalendarModal, SubPageHeader } from './components';
 
 const WEEKDAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
@@ -58,7 +58,8 @@ export function MatchesPage({
 
   const shiftDay = (n: number) => setSelectedIso(toIsoLocal(addDaysTo(selected, n)));
 
-  const dayMatches = matches.filter((m) => (MATCH_DAY_OFFSET[m.id] ?? 0) === offset);
+  // المباريات الحقيقية/الديناميكية تُعرض بتاريخها الفعلي؛ الثابتة التجريبية بالترتيب القديم المؤقت
+  const dayMatches = matches.filter((m) => (m.matchDate ? m.matchDate === selectedIso : (MATCH_DAY_OFFSET[m.id] ?? 0) === offset));
   const leagues = [...new Set(dayMatches.map((m) => m.league))];
 
   return (
@@ -87,7 +88,7 @@ export function MatchesPage({
       </div>
       <div className="match-toolbar">
         <div><b>{formatFullAr(selected)}</b><span>اختر مباراة وابدأ توقعك</span></div>
-        <span className="live-dot"><i /> {dayMatches.length} مباريات في هذا اليوم</span>
+        <span className="live-dot"><i /> {dayMatches.length} مباريات في هذا اليوم{dayMatches.length > 0 && dayMatches.every((m) => m.demo) ? ' · بيانات تجريبية' : ''}</span>
       </div>
       {dayMatches.length === 0 ? (
         <div className="no-matches" data-testid="no-matches">
@@ -123,6 +124,7 @@ function MatchCard({ match, prediction, onPredict, onClick }: { match: Match; pr
         <span className="match-status">
           {isLive ? <><CircleDot size={13} className="pulse" /> مباشر</> : isFinished ? <>انتهت</> : <><Clock3 size={13} /> {match.time}</>}
         </span>
+        {match.demo && <span className="demo-tag">تجريبية</span>}
         <span className="points-badge"><Zap size={13} fill="currentColor" /> {match.points} نقاط</span>
       </div>
       <div className="match-body" onClick={onClick}>
@@ -190,7 +192,7 @@ export function MatchDetailsPage({
 
   return (
     <div className="page match-details-page">
-      <div className="subpage-header"><button onClick={onBack}><ChevronRight size={20} /></button><h1>تفاصيل المباراة</h1></div>
+      <SubPageHeader title="تفاصيل المباراة" onBack={onBack} />
       <div className="match-ticket">
         <div className="ticket-header">
           <span className="ticket-league"><Trophy size={15} /> {match.league}</span>
