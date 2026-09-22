@@ -59,10 +59,21 @@ export function RankingPage() {
     [rows],
   );
 
+  // مليونيرات بمبا = ترتيب أرصدة المحفظة (ليس منافسة نقاط) — يشمل كل حساب يملك رصيداً فعلياً.
+  const millionaires = useMemo(
+    () => rows.filter((r) => r.bamba_balance > 0).sort((a, b) => b.bamba_balance - a.bamba_balance),
+    [rows],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return q ? players.filter((u) => u.username.toLowerCase().includes(q)) : players;
   }, [players, search]);
+
+  const filteredMill = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q ? millionaires.filter((u) => u.username.toLowerCase().includes(q)) : millionaires;
+  }, [millionaires, search]);
 
   // مشاركة نتيجة المستخدم أو دعوة لتحدّي عضو آخر — Web Share مع بديل النسخ
   const shareRank = async (text: string, id?: string) => {
@@ -188,21 +199,26 @@ export function RankingPage() {
             <h3>ترتيب مليونيرات بمبا</h3>
             <p>أعضاء حققوا أعلى أرصدة من عملات بمبا <small>(عمولات بمبا)</small></p>
           </div>
-          <div className="ranking-list">
-            {[...filtered].sort((a, b) => b.bamba_balance - a.bamba_balance).map((u, i) => (
-              <div className="ranking-row" key={u.username + i}>
-                <b>{i + 1}</b>
-                {u.avatar_url ? (
-                  <img className="tiny-avatar-img" src={avatarUrl(u.avatar_url) ?? ''} alt={u.username} />
-                ) : (
-                  <span className="tiny-avatar">{u.username.slice(0, 1)}</span>
-                )}
-                <strong>{u.username}</strong>
-                <span className="rank-bamba">{u.bamba_balance.toLocaleString()} <small>بمبة</small></span>
-              </div>
-            ))}
-            {noResults}
-          </div>
+          <p className="millionaires-note">يُعرض كل حساب يملك رصيد بمبات فعلياً — عند حصولك على عمولات أو مكاسب ستظهر هنا تلقائياً.</p>
+          {filteredMill.length === 0 ? (
+            <div className="no-results" data-testid="millionaires-empty">لا توجد أرصدة بعد — أو لا نتائج مطابقة لبحثك</div>
+          ) : (
+            <div className="ranking-list">
+              {filteredMill.map((u, i) => (
+                <div className="ranking-row" key={u.username + i}>
+                  <b>{i + 1}</b>
+                  {u.avatar_url ? (
+                    <img className="tiny-avatar-img" src={avatarUrl(u.avatar_url) ?? ''} alt={u.username} />
+                  ) : (
+                    <span className="tiny-avatar">{u.username.slice(0, 1)}</span>
+                  )}
+                  <strong>{u.username}</strong>
+                  {u.role !== 'user' && <span className="rank-admin-tag">إدارة</span>}
+                  <span className="rank-bamba">{u.bamba_balance.toLocaleString()} <small>بمبة</small></span>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>

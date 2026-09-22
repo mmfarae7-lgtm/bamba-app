@@ -56,6 +56,25 @@ export async function loadAllMatches(): Promise<Match[]> {
   return [...staticMatches.map((m) => ({ ...m, demo: true })), ...dynamic];
 }
 
+/** توزيع تجريبي ثابت: أي يوم تعرض له المباراة الثابتة (بالنسبة ليوم اليوم) — تُستبدل بالبيانات الحقيقية لاحقاً */
+export const MATCH_DAY_OFFSET: Record<number, number> = { 1: 0, 2: 0, 3: 1, 4: -1, 5: -2, 6: -1, 7: 0 };
+
+export const toIsoLocalDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * نفس قاعدة قائمة المباريات الرئيسية (الصفحة الرئيسية):
+ * المباريات الديناميكية (matchDate) بتاريخها الفعلي، والثابتة التجريبية بموزّع الأيام المؤقت.
+ * ضمانًا أن الحلبات والتطبيق الرئيسي يعرضان نفس قائمة المباريات تماماً.
+ */
+export function matchesForDay(all: Match[], iso: string): Match[] {
+  const [y, m, d] = iso.split('-').map(Number);
+  const selected = new Date(y, m - 1, d);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const offset = Math.round((selected.getTime() - today.getTime()) / 86400000);
+  return all.filter((m) => (m.matchDate ? m.matchDate === iso : (MATCH_DAY_OFFSET[m.id] ?? 0) === offset));
+}
+
 /** خطّاف يعيد قائمة المباريات الكاملة (تظهر المباريات الجديدة فور إنشائها/مزامنتها من اللوحة). */
 export function useMatches(): { matches: Match[]; ready: boolean } {
   const [matches, setMatches] = useState<Match[]>(staticMatches.map((m) => ({ ...m, demo: true })));

@@ -252,6 +252,7 @@ export function AdminPage({ profile, onBack }: { profile: Profile; onBack: () =>
         <header className="admin-topbar">
           <button className="admin-menu-button" onClick={() => setMenuOpen(true)} aria-label="فتح القائمة"><Menu size={21} /></button>
           <div><span className="eyebrow">نظام تشغيل BMBA</span><h1>{currentLabel}</h1></div>
+          <button className="admin-back-top" onClick={onBack} title="العودة للتطبيق"><ArrowRight size={16} /> رجوع</button>
           <div className="admin-top-actions"><button aria-label="الإشعارات"><Bell size={19} /><i /></button><span className="admin-avatar">{profile.username.charAt(0)}</span></div>
         </header>
 

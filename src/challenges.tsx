@@ -23,7 +23,7 @@ import { challenges } from './data';
 import { loadStore, makeCouponCode, storeFileUrl } from './lib/store';
 import type { StorePartner, StoreProduct } from './lib/store';
 import { PageHeading, SubPageHeader, PredictionModal } from './components';
-import { useMatches } from './lib/matches';
+import { useMatches, matchesForDay, toIsoLocalDate } from './lib/matches';
 import {
   fetchMyArenas,
   createArena,
@@ -236,7 +236,9 @@ function ArenaDetailPage({ arena, userId, onBack, onRewards }: { arena: ArenaInf
 
   useEffect(() => { void (async () => { setRankingLoading(true); const [preds, rank] = await Promise.all([fetchMyArenaPredictions(arena.id), fetchArenaLeaderboard(arena.id)]); setRankingLoading(false); setMyPreds(mapPreds(preds)); setLeader(rank); })(); }, [arena.id]);
 
-  const arenaMatches = matches.filter((m) => arena.league_filter === 'كل البطولات' || m.league === arena.league_filter);
+  // نفس قائمة المباريات الرئيسية تماماً (يوم اليوم) ثم فتيل البطولة — لا مباريات «زائدة»
+  const arenaMatches = matchesForDay(matches, toIsoLocalDate(new Date()))
+    .filter((m) => arena.league_filter === 'كل البطولات' || m.league === arena.league_filter);
 
   const saveArenaPrediction = async (matchId: number, prediction: string) => {
     const [h, a] = prediction.split('-').map((n) => Number(n));
@@ -279,7 +281,7 @@ function ArenaDetailPage({ arena, userId, onBack, onRewards }: { arena: ArenaInf
 
       {tab === 'matches' ? (
         arenaMatches.length === 0 ? (
-          <div className="arena-empty">لا توجد مباريات {arena.league_filter === 'كل البطولات' ? '' : `في ${arena.league_filter}`} حالياً — عد لاحقاً.</div>
+          <div className="arena-empty">لا توجد مباريات {arena.league_filter === 'كل البطولات' ? 'لهذا اليوم' : `في ${arena.league_filter} لهذا اليوم`} — اختر يوماً آخر من قائمة المباريات الرئيسية.</div>
         ) : (
           <div className="arena-matches-list">
             {arenaMatches.map((m) => {
@@ -288,7 +290,7 @@ function ArenaDetailPage({ arena, userId, onBack, onRewards }: { arena: ArenaInf
               return (
                 <div className="arena-match" key={m.id}>
                   <div className="arena-match-meta">
-                    <span>{m.league}</span>
+                    <span>{m.league}{m.demo ? ' · تجريبية' : ''}</span>
                     <span className={m.featured ? 'arena-featured' : ''}>{m.featured ? <><Zap size={11} /> نارية {m.points} نقاط</> : <>{m.points} نقاط</>}</span>
                   </div>
                   <div className="arena-match-teams">

@@ -16,7 +16,7 @@ import {
   Goal,
 } from 'lucide-react';
 import type { Match } from './types';
-import { useMatches } from './lib/matches';
+import { useMatches, matchesForDay } from './lib/matches';
 import { PageHeading, CalendarModal, SubPageHeader } from './components';
 
 const WEEKDAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -28,12 +28,8 @@ const parseIsoLocal = (iso: string) => {
 };
 const toIsoLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const addDaysTo = (d: Date, n: number) => { const c = new Date(d); c.setDate(c.getDate() + n); return c; };
-const daysDiff = (a: Date, b: Date) => Math.round((a.getTime() - b.getTime()) / 86400000);
 const formatDateAr = (d: Date) => `${WEEKDAYS_AR[d.getDay()]}\n${d.getDate()} ${MONTHS_AR[d.getMonth()]}`;
 const formatFullAr = (d: Date) => `${WEEKDAYS_AR[d.getDay()]}، ${d.getDate()} ${MONTHS_AR[d.getMonth()]} ${d.getFullYear()}`;
-
-// توزيع تجريبي ثابت: أي يوم تعرض له المباراة (بالنسبة ليوم اليوم) — تُستبدل بالبيانات الحقيقية لاحقاً
-const MATCH_DAY_OFFSET: Record<number, number> = { 1: 0, 2: 0, 3: 1, 4: -1, 5: -2, 6: -1, 7: 0 };
 
 export function MatchesPage({
   predictions,
@@ -52,14 +48,13 @@ export function MatchesPage({
   const [touchX, setTouchX] = useState(0);
 
   const selected = parseIsoLocal(selectedIso);
-  const offset = daysDiff(selected, today);
   // الشريط يعرض خمسة أيام متمركزة حول التاريخ المختار
   const stripDates = [-2, -1, 0, 1, 2].map((n) => addDaysTo(selected, n));
 
   const shiftDay = (n: number) => setSelectedIso(toIsoLocal(addDaysTo(selected, n)));
 
   // المباريات الحقيقية/الديناميكية تُعرض بتاريخها الفعلي؛ الثابتة التجريبية بالترتيب القديم المؤقت
-  const dayMatches = matches.filter((m) => (m.matchDate ? m.matchDate === selectedIso : (MATCH_DAY_OFFSET[m.id] ?? 0) === offset));
+  const dayMatches = matchesForDay(matches, selectedIso);
   const leagues = [...new Set(dayMatches.map((m) => m.league))];
 
   return (
