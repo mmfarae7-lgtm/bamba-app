@@ -743,6 +743,13 @@ button { cursor: pointer; border: 0; }
 .dark .coach-info h4 { color: #cfe3d3; }
 .dark .coach-info ol li { color: #aab8ad; }
 .dark .scoring-rules .rule-row { background: #16271c; border-color: #2b4a36; color: #c9d8cd; }
+.best-coaches { margin-top: 24px; padding: 16px; background: #fff; border: 1px solid #e0e9e1; border-radius: 16px; }
+.best-coaches h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 15px; color: #1c4a2c; }
+.best-coaches > p { margin: 0 0 14px; font-size: 11.5px; color: #8b978e; }
+.coach-rank-empty { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 18px 12px; border: 1px dashed #d8e4d9; border-radius: 12px; color: #8b978e; font-size: 12px; text-align: center; background: #f8fbf8; }
+.dark .best-coaches { background: #1b2e23; border-color: #2b4a36; }
+.dark .best-coaches h3 { color: #cfe3d3; }
+.dark .coach-rank-empty { background: #16271c; border-color: #2b4a36; color: #aab8ad; }
 /* ===== المتجر العام — الشركاء والقسائم ===== */
 .store-offer { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg, #197b40, #2ea35c); color: #fff; border-radius: 16px; padding: 16px; margin-bottom: 16px; }
 .store-offer svg { color: #f9d823; }

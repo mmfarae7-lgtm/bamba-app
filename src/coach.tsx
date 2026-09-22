@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Check, ChevronDown, Crown, Gift, Search, ShieldCheck, Star, WalletCards, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, Crown, Gift, ListOrdered, Search, ShieldCheck, Star, WalletCards, X } from 'lucide-react';
 import { players } from './data';
 import { SubPageHeader } from './components';
 import type { Player } from './types';
@@ -147,6 +147,12 @@ export function CoachPage({ onBack, onRewards }: { onBack: () => void; onRewards
       <div className="coach-bottom-bar">
         <button className="outline-button" onClick={() => setShowSquad(true)}>تشكيلتي ({owned.length})</button>
         <button className="primary-button" disabled={owned.length < MAX_PLAYERS}>حفظ التشكيلة <ArrowLeft size={18} /></button>
+      </div>
+
+      <div className="best-coaches">
+        <h3><ListOrdered size={18} /> أفضل المدربين</h3>
+        <p>ترتيب المدربين حسب مجموع النقاط المكتسبة من أداء لاعبيهم.</p>
+        <div className="coach-rank-empty">لا يوجد ترتيب للمدربين بعد — يُعلن تلقائياً عند اعتماد نتائج المباريات.</div>
       </div>
 
       {showSquad && (
