@@ -24,6 +24,7 @@ import {
   Menu,
   Megaphone,
   Package,
+  PlayCircle,
   Plus,
   RefreshCw,
   Search,
@@ -43,6 +44,7 @@ import {
 import { BrandLogo } from './components';
 import { StoreSection } from './store-admin';
 import { loadAllMatches } from './lib/matches';
+import { execApproval } from './lib/admin-api';
 import { fetchFixtures, fixturesApiConfigured } from './lib/fixtures';
 import { supabase } from './lib/supabase';
 import type { Profile } from './lib/supabase';
@@ -1391,7 +1393,7 @@ function AdminSecuritySection({ can }: { can: (k: string) => boolean }) {
   const [events, setEvents] = useState<Array<{ id: number; event_type: string; success: boolean; failure_reason: string | null; created_at: string }>>([]);
   const [approvals, setApprovals] = useState<ApprovalReq[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ type: 'wallet_adjustment', resource: 'wallet', reason: '' });
+  const [form, setForm] = useState({ type: 'wallet_adjustment', resource: 'wallet', reason: '', resourceId: '', direction: 'credit', amount: '', homeScore: '', awayScore: '' });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const canAudit = can('audit.view');
@@ -1413,13 +1415,30 @@ function AdminSecuritySection({ can }: { can: (k: string) => boolean }) {
 
   const createApproval = async () => {
     if (!form.reason.trim()) { setMsg('اكتب سبب الطلب (إلزامي للعمليات الحساسة)'); return; }
+    const resourceId = form.resourceId.trim();
+    const requestData: Record<string, unknown> = {};
+    if (form.type === 'wallet_adjustment' || form.type === 'points_adjustment') {
+      const amount = Number(form.amount);
+      if (!resourceId) { setMsg('أدخل معرّف المستخدم (UUID) في حقل معرّف المورد'); return; }
+      if (!amount || amount <= 0) { setMsg('أدخل مقدارًا صحيحًا أكبر من صفر'); return; }
+      if (form.type === 'wallet_adjustment') { requestData.direction = form.direction; requestData.amount = amount; }
+      else { requestData.amount = amount; }
+    } else if (form.type === 'match_result_correction') {
+      const h = Number(form.homeScore);
+      const a = Number(form.awayScore);
+      if (!resourceId) { setMsg('أدخل معرّف المباراة في حقل معرّف المورد'); return; }
+      if (Number.isNaN(h) || h < 0 || Number.isNaN(a) || a < 0) { setMsg('أدخل نتيجة صحيحة (أهداف غير سالبة)'); return; }
+      requestData.home_score = h; requestData.away_score = a; requestData.is_fixture = false;
+    } else if (form.type === 'payment_refund' || form.type === 'prediction_correction') {
+      if (!resourceId) { setMsg('أدخل معرّف المورد (UUID) الخاص بالعملية'); return; }
+    }
     setMsg('');
     const { data, error } = await supabase.rpc('create_approval_request', {
-      p_request_type: form.type, p_resource_type: form.resource, p_resource_id: null, p_reason: form.reason.trim(), p_request_data: {},
+      p_request_type: form.type, p_resource_type: form.resource, p_resource_id: resourceId || null, p_reason: form.reason.trim(), p_request_data: requestData,
     });
     if (error || !data || (data as { error?: string }).error) { setMsg(`فشل إنشاء الطلب: ${error?.message ?? (data as { error?: string }).error ?? 'تحقق من الصلاحيات'}`); return; }
-    setMsg('تم إنشاء طلب الاعتماد — سيراجعه مدير آخر (Maker → Checker) ✓');
-    setForm({ ...form, reason: '' });
+    setMsg('تم إنشاء طلب الاعتماد — يراجعه مدير آخر (Maker → Checker) ثم يُنفَّذ عبر زر «تنفيذ» ✓');
+    setForm({ ...form, reason: '', resourceId: '', amount: '', homeScore: '', awayScore: '' });
     void load();
   };
 
@@ -1429,6 +1448,15 @@ function AdminSecuritySection({ can }: { can: (k: string) => boolean }) {
     setBusyId(null);
     if (error || !data || (data as { error?: string }).error) { setMsg(`فشل المراجعة: ${error?.message ?? (data as { error?: string }).error ?? 'لا يمكن لمنشئ الطلب اعتماده بنفسه'}`); return; }
     setMsg(`تم ${approve ? 'اعتماد' : 'رفض'} الطلب ✓`);
+    void load();
+  };
+
+  const executeApproval = async (req: ApprovalReq) => {
+    setBusyId(req.id); setMsg('');
+    const res = await execApproval(req.id, 'تنفيذ يدوي من اللوحة');
+    setBusyId(null);
+    if (!res.success) { setMsg(`فشل التنفيذ: ${res.error?.code} — ${res.error?.message}`); void load(); return; }
+    setMsg('تم تنفيذ الطلب واكتمل ✓');
     void load();
   };
 
@@ -1472,6 +1500,21 @@ function AdminSecuritySection({ can }: { can: (k: string) => boolean }) {
               <div className="admin-panel-heading"><div><span className="eyebrow">طلب اعتماد</span><h3>إنشاء عملية حساسة (Maker)</h3></div></div>
               <div className="admin-create-grid" style={{ marginBottom: 12 }}>
                 <label style={{ gridColumn: '1 / -1' }}>نوع العملية<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{types.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select></label>
+                {(form.type === 'wallet_adjustment' || form.type === 'points_adjustment' || form.type === 'match_result_correction' || form.type === 'payment_refund' || form.type === 'prediction_correction') && (
+                  <label style={{ gridColumn: '1 / -1' }}>معرّف المورد (UUID المستخدم / معرّف المباراة / UUID الدفعة)<input value={form.resourceId} onChange={(e) => setForm({ ...form, resourceId: e.target.value })} placeholder="مثال: 60655563-cfef-4818-b21c-ec422a4c05e4" dir="ltr" /></label>
+                )}
+                {form.type === 'wallet_adjustment' && (
+                  <label>الاتجاه<select value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })}><option value="credit">إضافة (Credit)</option><option value="debit">خصم (Debit)</option></select></label>
+                )}
+                {(form.type === 'wallet_adjustment' || form.type === 'points_adjustment') && (
+                  <label>المقدار<input type="number" min={1} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="عدد البمبات/النقاط" /></label>
+                )}
+                {form.type === 'match_result_correction' && (
+                  <>
+                    <label>أهداف الفريق الأول<input type="number" min={0} value={form.homeScore} onChange={(e) => setForm({ ...form, homeScore: e.target.value })} /></label>
+                    <label>أهداف الفريق الثاني<input type="number" min={0} value={form.awayScore} onChange={(e) => setForm({ ...form, awayScore: e.target.value })} /></label>
+                  </>
+                )}
                 <label style={{ gridColumn: '1 / -1' }}>سبب الطلب (إلزامي)<textarea rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="مثال: تصحيح نتيجة من المصدر الرسمي" /></label>
               </div>
               <button className="admin-approve-btn" onClick={() => void createApproval()}><ListChecks size={16} /> إنشاء طلب الاعتماد</button>
@@ -1479,11 +1522,16 @@ function AdminSecuritySection({ can }: { can: (k: string) => boolean }) {
             <section className="admin-panel">
               <div className="admin-panel-heading"><div><span className="eyebrow">قائمة الانتظار</span><h3>طلبات الاعتماد ({approvals.length})</h3></div></div>
               <div className="admin-activity-list">{approvals.map((r) => (
-                <div className="admin-activity-row" key={r.id}><span className="activity-dot" /><div><b>{r.request_type}</b><small>{r.reason}</small></div>
+                <div className="admin-activity-row" key={r.id}><span className="activity-dot" /><div><b>{r.request_type}</b><small>{r.reason}{r.resource_id ? ` · id: ${r.resource_id}` : ''}</small></div>
                   {r.status === 'pending' ? (
                     <span className="admin-inline-actions">
                       <button className="role-action" disabled={busyId === r.id} onClick={() => void reviewApproval(r, true)}><CheckCircle2 size={13} /> اعتماد</button>
                       <button className="role-action remove" disabled={busyId === r.id} onClick={() => void reviewApproval(r, false)}><Ban size={13} /> رفض</button>
+                    </span>
+                  ) : r.status === 'approved' ? (
+                    <span className="admin-inline-actions">
+                      <button className="role-action" disabled={busyId === r.id} onClick={() => void executeApproval(r)}><PlayCircle size={13} /> تنفيذ</button>
+                      <time><span className={`role-pill ${r.status}`}>{r.status}</span></time>
                     </span>
                   ) : <time><span className={`role-pill ${r.status}`}>{r.status}</span></time>}
                 </div>
