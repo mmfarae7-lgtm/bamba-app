@@ -53,9 +53,9 @@ export function RankingPage() {
     return () => { mounted = false; };
   }, []);
 
-  // حسابات الإدارة أدوار إشرافية ولا تنافس في الترتيب
+  // حسابات المشرفين (admin) أدوار تنسيقية ولا تنافس في الترتيب — أما السوبر أدمن فيتوقع وينافس مثل أي حساب.
   const players = useMemo(
-    () => rows.filter((r) => r.role !== 'admin' && r.role !== 'super_admin'),
+    () => rows.filter((r) => r.role !== 'admin'),
     [rows],
   );
 
