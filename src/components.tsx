@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  Bell,
   CalendarDays,
   ChevronDown,
   ChevronLeft,
@@ -10,15 +9,21 @@ import {
   CircleDot,
   CircleHelp,
   Copy,
+  FileText,
   Globe2,
+  HelpCircle,
   Info,
   LogIn,
   Moon,
   PlayCircle,
   Search,
+  Send,
   Settings,
   Share2,
+  ShieldCheck,
   Sun,
+  Trophy,
+  User,
   WalletCards,
   X,
   Zap,
@@ -26,6 +31,7 @@ import {
 import type { Tab, Match } from './types';
 import { BRAND, BRAND_LOGO_SIZES } from './config/branding';
 import type { BrandSize, BrandVariant } from './config/branding';
+import { avatarUrl } from './lib/supabase';
 
 // المكوّن الموحّد للشعار — يعرض صورة الشعار الرسمية من المصدر المركزي في كل مكان.
 // كل النسخ (default/compact/white/dark) تستخدم نفس الملف الرسمي: الصورة شفافة
@@ -97,82 +103,29 @@ export function BambaCoin({ size = 26, className }: { size?: number; className?:
 
 export function TopBar({
   onProfile,
-  onProfilePage,
   onRewards,
   onHome,
-  darkMode,
-  setDarkMode,
-  showProfile,
-  bambaBalance,
-  userPoints,
-  onSettings,
-  onLogout,
   username,
-  language,
-  notificationsOn,
-  onToggleNotifications,
-  onLanguage,
-  onCompetitionInfo,
-  onFollowUs,
-  onShare,
-  onUsageData,
+  userPoints,
+  bambaBalance,
 }: {
   onProfile: () => void;
-  onProfilePage: () => void;
   onRewards: () => void;
   onHome: () => void;
-  darkMode: boolean;
-  setDarkMode: (v: boolean) => void;
-  showProfile: boolean;
-  bambaBalance: number;
-  userPoints: number;
-  onSettings: () => void;
-  onLogout: () => void;
   username: string;
-  language: string;
-  notificationsOn: boolean;
-  onToggleNotifications: () => void;
-  onLanguage: () => void;
-  onCompetitionInfo: () => void;
-  onFollowUs: () => void;
-  onShare: () => void;
-  onUsageData: () => void;
+  userPoints: number;
+  bambaBalance: number;
 }) {
   return (
     <header className="topbar">
-      {/* يمين الشريط: الملف الشخصي (الصورة + النقاط) وزر الإشعارات بجانبه */}
+      {/* يمين الشريط: الملف الشخصي (الصورة + النقاط) — قائمة الملف الشخصي تُعرض
+          كـ Bottom Sheet من أسفل الشاشة (جوال) أو Dropdown (شاشات أعرض) */}
       <div className="profile-actions">
-        <button
-          className={`icon-button notification-button ${notificationsOn ? 'on' : ''}`}
-          onClick={onToggleNotifications}
-          title={notificationsOn ? 'إيقاف الإشعارات' : 'تفعيل الإشعارات'}
-          aria-label={notificationsOn ? 'إيقاف الإشعارات' : 'تفعيل الإشعارات'}
-          data-testid="notifications-button"
-        >
-          <Bell size={19} />
-          {notificationsOn && <i />}
-        </button>
         <button className="profile-chip" onClick={onProfile} data-testid="profile-chip-button">
           <span><small>نقاطي</small><b>{userPoints}</b></span>
           <span className="avatar">{(username || '?').trim().charAt(0)}</span>
           <ChevronDown size={16} />
         </button>
-        {showProfile && (
-          <ProfileMenu
-            darkMode={darkMode}
-            setDarkMode={setDarkMode}
-            onSettings={onSettings}
-            onProfilePage={onProfilePage}
-            onLogout={onLogout}
-            username={username}
-            language={language}
-            onLanguage={onLanguage}
-            onCompetitionInfo={onCompetitionInfo}
-            onFollowUs={onFollowUs}
-            onShare={onShare}
-            onUsageData={onUsageData}
-          />
-        )}
       </div>
       {/* وسط الشريط: أيقونة التطبيق واسمه */}
       <button className="app-brand" onClick={onHome} data-testid="topbar-brand-button">
@@ -189,13 +142,20 @@ export function TopBar({
   );
 }
 
-function ProfileMenu({
+// قائمة الملف الشخصي — Bottom Sheet على الجوال / Dropdown على الشاشات الأعرض.
+// تُعرض هذه القائمة خارج الـ TopBar (على مستوى app-shell في App) كي تغطي
+// خلفيتها المعتمة كامل الشاشة فوق الشريط السفلي وكل عناصر الصفحة (z-index).
+export function ProfileMenu({
   darkMode,
   setDarkMode,
   onSettings,
   onProfilePage,
   onLogout,
+  onClose,
   username,
+  avatar,
+  userPoints,
+  bambaBalance,
   language,
   onLanguage,
   onCompetitionInfo,
@@ -208,7 +168,11 @@ function ProfileMenu({
   onSettings: () => void;
   onProfilePage: () => void;
   onLogout: () => void;
+  onClose: () => void;
   username: string;
+  avatar: string | null;
+  userPoints: number;
+  bambaBalance: number;
   language: string;
   onLanguage: () => void;
   onCompetitionInfo: () => void;
@@ -216,23 +180,72 @@ function ProfileMenu({
   onShare: () => void;
   onUsageData: () => void;
 }) {
+  // سحب للأسفل على مقبض القائمة يغلقها (جوال)
+  const [dragStartY, setDragStartY] = useState<number | null>(null);
+
   return (
-    <div className="profile-menu">
-      {/* أعلى القائمة: أيقونة الملف الشخصي — تنقل لصفحة الملف الشخصي */}
-      <button className="menu-user" onClick={onProfilePage} data-testid="open-profile-button">
-        <span className="avatar large">{(username || '?').trim().charAt(0)}</span>
-        <div><b>{username || 'لاعب بمبا'}</b><small>عرض الملف الشخصي</small></div>
-      </button>
-      <button onClick={onSettings} data-testid="open-settings-button"><Settings size={17} /> الإعدادات</button>
-      <button onClick={onLanguage} data-testid="open-language-button"><Globe2 size={17} /> لغة التطبيق <span className="menu-value">{language === 'en' ? 'English' : 'العربية'}</span></button>
-      <button onClick={() => setDarkMode(!darkMode)} data-testid="menu-darkmode-button">
-        {darkMode ? <Sun size={17} /> : <Moon size={17} />} وضع التطبيق <span className="menu-value">{darkMode ? 'نهاري' : 'ليلي'}</span>
-      </button>
-      <button onClick={onCompetitionInfo} data-testid="open-competition-info-button"><Info size={17} /> معلومات المسابقة</button>
-      <button onClick={onFollowUs} data-testid="open-followus-button"><Share2 size={17} /> تابعنا</button>
-      <button onClick={onShare} data-testid="share-app-button"><Share2 size={17} /> مشاركة التطبيق</button>
-      <button onClick={onUsageData} data-testid="open-usage-button"><Info size={17} /> بيانات الاستخدام</button>
-      <button className="logout" onClick={onLogout} data-testid="profile-menu-logout-button"><LogIn size={17} /> تسجيل الخروج</button>
+    <div className="profile-menu-layer" data-testid="profile-menu">
+      {/* خلفية معتمة تغطي الشاشة — الضغط خارج القائمة يغلقها */}
+      <div className="profile-menu-backdrop" onClick={onClose} data-testid="profile-menu-backdrop" />
+      <aside className="profile-menu" role="dialog" aria-modal="true" aria-label="قائمة الملف الشخصي">
+        <div
+          className="menu-grabber"
+          onTouchStart={(e) => setDragStartY(e.touches[0]!.clientY)}
+          onTouchEnd={(e) => {
+            if (dragStartY === null) return;
+            const dy = e.changedTouches[0]!.clientY - dragStartY;
+            setDragStartY(null);
+            if (dy > 70) onClose();
+          }}
+        >
+          <span />
+        </div>
+        <button className="menu-close" onClick={onClose} aria-label="إغلاق القائمة" data-testid="profile-menu-close">
+          <X size={18} />
+        </button>
+        <header className="menu-header">
+          <span className="avatar large menu-avatar">
+            {avatar ? (
+              <img src={avatarUrl(avatar) ?? ''} alt={username || 'لاعب بمبا'} />
+            ) : (
+              (username || '?').trim().charAt(0)
+            )}
+          </span>
+          <div className="menu-head-main">
+            <b>{username || 'لاعب بمبا'}</b>
+            <div className="menu-head-stats">
+              <span className="menu-stat"><Zap size={13} /><b>{userPoints.toLocaleString()}</b> نقاط</span>
+              <span className="menu-stat"><BambaCoin size={14} /><b>{bambaBalance.toLocaleString()}</b> بمبات</span>
+            </div>
+          </div>
+        </header>
+
+        <div className="menu-sections">
+          <section className="menu-section">
+            <h5 className="menu-section-label">الحساب</h5>
+            <button onClick={onProfilePage} data-testid="open-profile-button"><span className="menu-item-icon"><User size={17} /></span>الملف الشخصي<span className="menu-value">عرض الصفحة</span></button>
+            <button onClick={onSettings} data-testid="open-settings-button"><span className="menu-item-icon"><Settings size={17} /></span>الإعدادات</button>
+          </section>
+          <section className="menu-section">
+            <h5 className="menu-section-label">التفضيلات</h5>
+            <button onClick={onLanguage} data-testid="open-language-button"><span className="menu-item-icon"><Globe2 size={17} /></span>لغة التطبيق<span className="menu-value">{language === 'en' ? 'English' : 'العربية'}</span></button>
+            <button onClick={() => setDarkMode(!darkMode)} data-testid="menu-darkmode-button"><span className="menu-item-icon">{darkMode ? <Sun size={17} /> : <Moon size={17} />}</span>وضع التطبيق<span className="menu-value">{darkMode ? 'نهاري' : 'ليلي'}</span></button>
+          </section>
+          <section className="menu-section">
+            <h5 className="menu-section-label">التطبيق والمجتمع</h5>
+            <button onClick={onCompetitionInfo} data-testid="open-competition-info-button"><span className="menu-item-icon"><Trophy size={17} /></span>معلومات البطولات</button>
+            <button onClick={onFollowUs} data-testid="open-followus-button"><span className="menu-item-icon"><Share2 size={17} /></span>تابعنا</button>
+            <button onClick={onShare} data-testid="share-app-button"><span className="menu-item-icon"><Send size={17} /></span>مشاركة التطبيق</button>
+          </section>
+          <section className="menu-section">
+            <h5 className="menu-section-label">السياسة والدعم</h5>
+            <button onClick={onUsageData} data-testid="open-usage-button"><span className="menu-item-icon"><ShieldCheck size={17} /></span>سياسة الخصوصية</button>
+            <button onClick={onUsageData} data-testid="open-terms-button"><span className="menu-item-icon"><FileText size={17} /></span>شروط الاستخدام</button>
+            <button onClick={onUsageData} data-testid="open-faq-button"><span className="menu-item-icon"><HelpCircle size={17} /></span>الأسئلة الشائعة</button>
+          </section>
+          <button className="logout" onClick={onLogout} data-testid="profile-menu-logout-button"><span className="menu-item-icon"><LogIn size={17} /></span>تسجيل الخروج</button>
+        </div>
+      </aside>
     </div>
   );
 }
@@ -286,16 +299,21 @@ export function PredictionModal({ match, existing, onClose, onSave }: { match: M
         <h2>توقع نتيجة المباراة</h2>
         <p>{match.home} ضد {match.away}</p>
         <div className="score-inputs">
-          <div>
+          {/* عمود الفريق الأول (المضيف) — الشعار فوق الاسم فوق حقل النتيجة */}
+          <div className="team-column">
             <span className="team-logo home-logo">{match.homeShort}</span>
-            <b>{match.home}</b>
-            <input value={home} onChange={(e) => setHome(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} inputMode="numeric" placeholder="0" />
+            <b className="team-name">{match.home}</b>
           </div>
-          <span className="dash">-</span>
-          <div>
-            <input value={away} onChange={(e) => setAway(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} inputMode="numeric" placeholder="0" />
-            <b>{match.away}</b>
+          {/* عمود الفريق الثاني (الضيف) — بنفس بنية العمود الأول تماماً */}
+          <div className="team-column">
             <span className="team-logo away-logo">{match.awayShort}</span>
+            <b className="team-name">{match.away}</b>
+          </div>
+          {/* صف حقلي النتيجة يمتد بعرض العمودين — علامة - في المنتصف تماماً */}
+          <div className="score-row">
+            <input value={home} onChange={(e) => setHome(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} inputMode="numeric" placeholder="0" aria-label={`نتيجة ${match.home}`} />
+            <span className="dash">-</span>
+            <input value={away} onChange={(e) => setAway(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} inputMode="numeric" placeholder="0" aria-label={`نتيجة ${match.away}`} />
           </div>
         </div>
         <button className="primary-button" disabled={home === '' || away === ''} onClick={() => onSave(match.id, `${home}-${away}`)}>

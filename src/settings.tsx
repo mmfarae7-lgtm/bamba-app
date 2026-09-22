@@ -95,6 +95,7 @@ export function SettingsPage({
           <div className="settings-user-badges">
             <span><User size={13} /> {email}</span>
             {role === 'super_admin' && <span className="admin-badge"><Shield size={13} /> مدير عام</span>}
+            {role === 'admin' && <span className="admin-badge"><Shield size={13} /> مشرف</span>}
             {country && <span><Globe2 size={13} /> {country}</span>}
             {phone && phone !== '—' && <span dir="ltr"><Phone size={13} /> {phone}</span>}
           </div>
@@ -139,11 +140,12 @@ export function SettingsPage({
         </div>
       </div>
 
-      {role === 'super_admin' && (
+      {(role === 'super_admin' || role === 'admin') && (
         <div className="settings-section">
           <button className="settings-admin-btn" onClick={onAdmin} data-testid="open-admin-button">
-            <Shield size={18} /> لوحة إدارة BMBA
+            <Shield size={18} /> {role === 'super_admin' ? 'لوحة إدارة BMBA' : 'لوحة إدارة المشرف'}
           </button>
+          {role === 'admin' && <p className="settings-admin-note">صلاحياتك: مباريات اليوم + إدارة المتجر</p>}
         </div>
       )}
 

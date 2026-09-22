@@ -4,7 +4,7 @@ import { supabase } from './lib/supabase';
 import { deleteStoreFile, storeFileUrl, uploadStoreFile } from './lib/store';
 import type { StorePartner, StoreProduct } from './lib/store';
 
-const CATEGORIES = ['محل رياضي', 'مطعم', 'متجر', 'خدمات'];
+const CATEGORIES = ['محل رياضي', 'مطعم', 'متجر', 'خدمات', 'شركة'];
 const DISCOUNTS = [20, 50, 70];
 const PRODUCT_CATEGORIES = ['ملابس', 'أدوات', 'مطاعم', 'هدايا', 'أخرى'];
 

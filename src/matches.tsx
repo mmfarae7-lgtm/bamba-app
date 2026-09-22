@@ -16,7 +16,7 @@ import {
   Goal,
 } from 'lucide-react';
 import type { Match } from './types';
-import { matches } from './data';
+import { useMatches } from './lib/matches';
 import { PageHeading, CalendarModal } from './components';
 
 const WEEKDAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -44,6 +44,7 @@ export function MatchesPage({
   onPredict: (m: Match) => void;
   onMatchClick: (m: Match) => void;
 }) {
+  const { matches } = useMatches();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [selectedIso, setSelectedIso] = useState(toIsoLocal(today));

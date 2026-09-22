@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { CircleDot, Loader2, Lock } from 'lucide-react';
+import { Bell, CircleDot, Loader2, Lock } from 'lucide-react';
 import type { Tab, AuthStep, Page, Match } from './types';
-import { TopBar, BottomNav, PredictionModal, BrandLogo } from './components';
+import { BottomNav, BrandLogo, PredictionModal, ProfileMenu, TopBar } from './components';
 import { LanguageStep, LoginStep, SignupStep } from './auth';
 import { MatchesPage, MatchDetailsPage } from './matches';
 import { LeaguesPage, LeagueDetailsPage } from './leagues';
@@ -189,6 +189,14 @@ function App() {
   useEffect(() => {
     if (language && typeof document !== 'undefined') document.documentElement.lang = language;
   }, [language]);
+
+  // قفل تمرير الصفحة خلف قائمة الملف الشخصي المفتوحة — لا تمرير خلفي (جوال/حاسوب)
+  useEffect(() => {
+    if (!showProfile) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prevOverflow; };
+  }, [showProfile]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -599,25 +607,11 @@ function App() {
     <div className={`app-shell ${darkMode ? 'dark' : ''}`} dir="rtl">
       <TopBar
         onProfile={() => setShowProfile((c) => !c)}
-        onProfilePage={() => { setShowProfile(false); setPage('profile'); }}
         onRewards={() => setPage('earn')}
         onHome={goHome}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
-        showProfile={showProfile && !isSubPage}
         bambaBalance={bambaBalance}
         userPoints={userPoints}
-        onSettings={() => { setShowProfile(false); setPage('settings'); }}
-        onLogout={() => { setShowProfile(false); void handleLogout(); }}
         username={guest ? 'ضيف' : (userProfile?.username ?? 'لاعب بمبا')}
-        language={language}
-        notificationsOn={notificationsOn}
-        onToggleNotifications={() => { void toggleNotifications(); }}
-        onLanguage={() => { setShowProfile(false); setShowLanguage(true); }}
-        onCompetitionInfo={() => { setShowProfile(false); setShowCompetitionInfo(true); }}
-        onFollowUs={() => { setShowProfile(false); setShowFollowUs(true); }}
-        onShare={() => { setShowProfile(false); void shareApp(); }}
-        onUsageData={() => { setShowProfile(false); setShowUsageData(true); }}
       />
 
       <main className="content-area">
@@ -648,7 +642,7 @@ function App() {
         {page === 'earnQuiz' && (
           <QuizEarnPage onBack={() => setPage('earn')} balance={bambaBalance} onBalanceChange={setBambaBalance} />
         )}
-        {page === 'challengeArena' && <ChallengeArenaPage onBack={() => setPage('main')} onRewards={() => setPage('earn')} />}
+        {page === 'challengeArena' && <ChallengeArenaPage onBack={() => setPage('main')} onRewards={() => setPage('earn')} userId={userProfile?.id} />}
         {page === 'challengeQuiz' && <ChallengeQuizPage onBack={() => setPage('main')} onReward={(amount) => { void claimReward('challenge', 'quiz', amount, `challenge_quiz_${userProfile?.id ?? 'guest'}`); }} />}
         {page === 'challengeChampions' && <ChallengeChampionsPage onBack={() => setPage('main')} onRewards={() => setPage('earn')} onClaimed={() => { void claimReward('challenge', 'champions', 25, `challenge_champions_${userProfile?.id ?? 'guest'}`); }} />}
         {page === 'challengeStore' && <ChallengeStorePage onBack={() => setPage('main')} onRewards={() => setPage('earn')} balance={bambaBalance} />}
@@ -671,15 +665,50 @@ function App() {
         )}
         {page === 'admin' && profilePending && <Splash dark={darkMode} text="جاري فحص صلاحياتك..." />}
         {page === 'admin' && profileError && <ProfileErrorCard onRetry={() => { void retryProfile(); }} />}
-        {page === 'admin' && !profilePending && !profileError && userProfile?.role !== 'super_admin' && (
-          <div className="session-error-card"><h2>لا تملك صلاحية الوصول</h2><p>هذه الصفحة مخصصة للمدير العام فقط.</p><button className="primary-button" onClick={() => setPage('main')} data-testid="admin-denied-back-button">العودة للتطبيق</button></div>
+        {page === 'admin' && !profilePending && !profileError && userProfile?.role !== 'super_admin' && userProfile?.role !== 'admin' && (
+          <div className="session-error-card"><h2>لا تملك صلاحية الوصول</h2><p>هذه الصفحة مخصصة للمدير العام والمشرفين فقط.</p><button className="primary-button" onClick={() => setPage('main')} data-testid="admin-denied-back-button">العودة للتطبيق</button></div>
         )}
-        {page === 'admin' && userProfile?.role === 'super_admin' && (
+        {page === 'admin' && (userProfile?.role === 'super_admin' || userProfile?.role === 'admin') && (
           <AdminPage profile={userProfile} onBack={() => setPage('settings')} />
         )}
       </main>
 
       {!isSubPage && <BottomNav tab={tab} setTab={setTab} />}
+
+      {/* زر الإشعارات العائم — أسفل الشاشة فوق الشريط السفلي وليس بداخله */}
+      <button
+        className={`notification-fab ${notificationsOn ? 'on' : ''}`}
+        onClick={() => { void toggleNotifications(); }}
+        title={notificationsOn ? 'إيقاف الإشعارات' : 'تفعيل الإشعارات'}
+        aria-label={notificationsOn ? 'إيقاف الإشعارات' : 'تفعيل الإشعارات'}
+        data-testid="notifications-button"
+      >
+        <Bell size={20} />
+        {notificationsOn && <i />}
+      </button>
+
+      {/* قائمة الملف الشخصي — Bottom Sheet (جوال) / Dropdown (شاشات أعرض)،
+          تُعرض على مستوى app-shell لتغطي خلفيتها كل الصفحة فوق الشريط السفلي */}
+      {showProfile && !isSubPage && (
+        <ProfileMenu
+          darkMode={darkMode}
+          setDarkMode={setDarkMode}
+          onClose={() => setShowProfile(false)}
+          onSettings={() => { setShowProfile(false); setPage('settings'); }}
+          onProfilePage={() => { setShowProfile(false); setPage('profile'); }}
+          onLogout={() => { setShowProfile(false); void handleLogout(); }}
+          username={guest ? 'ضيف' : (userProfile?.username ?? 'لاعب بمبا')}
+          avatar={userProfile?.avatar_url ?? null}
+          userPoints={userPoints}
+          bambaBalance={bambaBalance}
+          language={language}
+          onLanguage={() => { setShowProfile(false); setShowLanguage(true); }}
+          onCompetitionInfo={() => { setShowProfile(false); setShowCompetitionInfo(true); }}
+          onFollowUs={() => { setShowProfile(false); setShowFollowUs(true); }}
+          onShare={() => { setShowProfile(false); void shareApp(); }}
+          onUsageData={() => { setShowProfile(false); setShowUsageData(true); }}
+        />
+      )}
 
       {showPrediction && <PredictionModal match={showPrediction} existing={predictions[showPrediction.id]} onClose={() => setShowPrediction(null)} onSave={savePrediction} />}
       {showLanguage && <LanguageModal onClose={() => setShowLanguage(false)} language={language} onChoose={handleLanguageChoose} />}
