@@ -10,7 +10,7 @@ import { ChallengesHub, ChallengeArenaPage, ChallengeQuizPage, ChallengeChampion
 import { CoachPage } from './coach';
 import { ProfilePage } from './profile';
 import { SettingsPage } from './settings';
-import { AdminPage } from './admin';
+import { AdminPage, isAdminRole } from './admin';
 import { LanguageModal, CompetitionInfoModal, FollowUsModal, UsageDataModal } from './info';
 import { EarnPage } from './earn';
 import { supabase, supabaseConfigured } from './lib/supabase';
@@ -665,10 +665,10 @@ function App() {
         )}
         {page === 'admin' && profilePending && <Splash dark={darkMode} text="جاري فحص صلاحياتك..." />}
         {page === 'admin' && profileError && <ProfileErrorCard onRetry={() => { void retryProfile(); }} />}
-        {page === 'admin' && !profilePending && !profileError && userProfile?.role !== 'super_admin' && userProfile?.role !== 'admin' && (
-          <div className="session-error-card"><h2>لا تملك صلاحية الوصول</h2><p>هذه الصفحة مخصصة للمدير العام والمشرفين فقط.</p><button className="primary-button" onClick={() => setPage('main')} data-testid="admin-denied-back-button">العودة للتطبيق</button></div>
+        {page === 'admin' && !profilePending && !profileError && (!userProfile || !isAdminRole(userProfile.role)) && (
+          <div className="session-error-card"><h2>لا تملك صلاحية الوصول</h2><p>هذه الصفحة مخصصة للمدير العام والمشرفين والموظفين الإداريين فقط.</p><button className="primary-button" onClick={() => setPage('main')} data-testid="admin-denied-back-button">العودة للتطبيق</button></div>
         )}
-        {page === 'admin' && (userProfile?.role === 'super_admin' || userProfile?.role === 'admin') && (
+        {page === 'admin' && userProfile && isAdminRole(userProfile.role) && (
           <AdminPage profile={userProfile} onBack={() => setPage('settings')} />
         )}
       </main>
