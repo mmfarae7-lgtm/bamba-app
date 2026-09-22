@@ -1,0 +1,62 @@
+{
+  "_comment": "DNS for BMBA via Cloudflare. All entries Proxied (orange cloud). Apply after zone bmba.com is added and verified.",
+  "zone": "bmba.com",
+  "records": [
+    {
+      "type": "A",
+      "name": "@",
+      "content": "76.76.21.21",
+      "proxied": true,
+      "ttl": 1,
+      "comment": "Root apex -> Vercel origin edge (anycast). Replace with backend origin IP when dedicated backend exists.",
+      "_alternatives": ["CNAME @ -> cname.vercel-dns.com (if apex CNAME is supported)"]
+    },
+    {
+      "type": "CNAME",
+      "name": "www",
+      "content": "cname.vercel-dns.com",
+      "proxied": true,
+      "ttl": 1,
+      "comment": "www -> Vercel origin"
+    },
+    {
+      "type": "CNAME",
+      "name": "api",
+      "content": "vigfdsxavkkrzyommiab.supabase.co",
+      "proxied": true,
+      "ttl": 1,
+      "comment": "API gateway. Currently Supabase REST/RPC origin; later dedicated BMBA backend. Needs Worker/gateway to route /rest/v1, /auth/v1 with CORS (see docs/cloudflare-architecture.md §8)."
+    },
+    {
+      "type": "CNAME",
+      "name": "admin",
+      "content": "cname.vercel-dns.com",
+      "proxied": true,
+      "ttl": 1,
+      "comment": "Admin dashboard — route-level guard + CF Access/Bot Fight/WAF high (see §6)."
+    },
+    {
+      "type": "CNAME",
+      "name": "staging",
+      "content": "cname.vercel-dns.com",
+      "proxied": true,
+      "ttl": 1,
+      "comment": "Staging web app"
+    },
+    {
+      "type": "CNAME",
+      "name": "api-staging",
+      "content": "<staging-supabase-ref>.supabase.co",
+      "proxied": true,
+      "ttl": 1,
+      "comment": "Staging API gateway (separate Supabase project)."
+    }
+  ],
+  "rules": {
+    "all_proxied": true,
+    "no_public_origin_a_records": true,
+    "always_use_https": true,
+    "tls": "Full (Strict)",
+    "hsts": true
+  }
+}

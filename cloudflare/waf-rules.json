@@ -1,0 +1,56 @@
+{
+  "_comment": "WAF rulesets for BMBA. Managed + custom rules. Apply via Cloudflare dashboard / rulesets API / Terraform.",
+  "managed_rulesets": [
+    {
+      "id": "OWASP-Core-Ruleset",
+      "mode": "enabled",
+      "sensitivity": "MEDIUM",
+      "actions": [
+        { "expression": "starts_with(http.request.uri.path, \"/api/v1\")", "sensitivity": "MEDIUM" },
+        { "expression": "starts_with(http.request.uri.path, \"/api/v1/admin\") or starts_with(http.request.uri.path, \"/admin\")", "sensitivity": "HIGH" }
+      ]
+    },
+    {
+      "id": "Cloudflare-Managed-Ruleset",
+      "mode": "enabled",
+      "actions": [
+        { "expression": "true", "action": "manage" }
+      ]
+    }
+  ],
+  "bot_fight_mode": [
+    { "hostname": "admin.bmba.com", "enabled": true },
+    { "hostname": "api.bmba.com", "enabled": false, "comment": "API clients are non-browser; enforce via custom UA/rate rules instead." }
+  ],
+  "custom_rules": [
+    {
+      "name": "Admin: allowlist countries",
+      "expression": "http.host eq \"admin.bmba.com\" and ip.geoip.country not in {\"SA\" \"AE\" \"KW\" \"QA\" \"BH\" \"OM\" \"EG\" \"JO\" \"US\" \"DE\" \"GB\"}",
+      "action": "block",
+      "description": "Access to admin console only from approved countries (adjust to ops team). Not a substitute for backend RBAC."
+    },
+    {
+      "name": "API: challenge suspicious auth UA",
+      "expression": "starts_with(http.request.uri.path, \"/api/v1/auth/\") and (not any(http.request.headers[\"user-agent\"][*] matches \"(Mozilla|okhttp|dart|axios|fetch|PostmanRuntime|curl|python-requests)\"))",
+      "action": "managed_challenge",
+      "description": "Credential-stuffing deterrent on login/otp endpoints."
+    },
+    {
+      "name": "API: admin requires Access session",
+      "expression": "starts_with(http.request.uri.path, \"/api/v1/admin\") and not cf.verified_bot and not any(http.request.headers[\"cf-access-jwt-assertion\"][*] matches \".*\")",
+      "action": "block",
+      "description": "When Cloudflare Access is enabled on admin API, block requests without a CF Access JWT. Backend RBAC still enforced."
+    },
+    {
+      "name": "Abuse: bad ASNs",
+      "expression": "ip.src.asnum in {}",
+      "action": "block",
+      "description": "Populate with known-abuse ASN list; maintained regularly. Placeholder set."
+    },
+    {
+      "name": "Skip security for health/static",
+      "expression": "any(http.request.uri.path matches \"^/(\\.well-known|healthz|favicon\\.ico)$\") or any(http.request.headers[\"content-type\"][*] matches \"application/json\") and any(http.request.method == \"OPTIONS\")",
+      "action": "skip"
+    }
+  ]
+}

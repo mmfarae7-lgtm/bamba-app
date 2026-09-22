@@ -1,0 +1,85 @@
+{
+  "_comment": "Rate limiting for BMBA at Cloudflare edge (coarse: by IP/header). Fine-grained per-user limits must be enforced in the Backend (api_check_rate — next slice). Tied to docs/admin-api-contract.md sections.",
+  "layer_model": "CF coarse -> Backend per-user -> Auth -> RBAC -> Scope -> Approval",
+  "policies": [
+    {
+      "path": "POST /api/v1/auth/login",
+      "period": "1m",
+      "requests_per_period": 5,
+      "action": "block",
+      "comment": "Login brute-force deterrent. Contract §4.",
+      "contract_section": "§4"
+    },
+    {
+      "path": "POST /api/v1/auth/otp",
+      "period": "1m",
+      "requests_per_period": 5,
+      "action": "block",
+      "comment": "OTP + 2FA verify — block 10m on violation (anti-brute). Contract §4.",
+      "contract_section": "§4"
+    },
+    {
+      "path": "POST /api/v1/predictions",
+      "period": "1m",
+      "requests_per_period": 120,
+      "action": "block",
+      "comment": "Prediction submit/edit. Peak: closing predictions (match day). Per-user limit in Backend. Contract §13.",
+      "contract_section": "§13"
+    },
+    {
+      "path": "POST /api/v1/quiz/answers",
+      "period": "1m",
+      "requests_per_period": 60,
+      "action": "block",
+      "comment": "Bursty (Quiz launch). Edge absorbs; Backend per-user. Contract §19.",
+      "contract_section": "§19"
+    },
+    {
+      "path": "POST /api/v1/wallet/*",
+      "period": "1m",
+      "requests_per_period": 20,
+      "action": "block",
+      "comment": "Sensitive: adjust/freeze. Enforce Idempotency-Key (§35) in Backend. Contract §15.",
+      "contract_section": "§15"
+    },
+    {
+      "path": "POST /api/v1/payments/*",
+      "period": "1m",
+      "requests_per_period": 20,
+      "action": "block",
+      "comment": "Review/approve/refund + Idempotency. Contract §16.",
+      "contract_section": "§16"
+    },
+    {
+      "path": "/api/v1/admin/*",
+      "period": "1m",
+      "requests_per_period": 300,
+      "action": "block",
+      "comment": "Low global ceiling; add Cloudflare Access + IP allowlist. Backend RBAC/scope/approval still the gate. Contract §5–§10.",
+      "contract_section": "§5..§10"
+    },
+    {
+      "path": "GET /api/v1/matches",
+      "period": "1m",
+      "requests_per_period": 600,
+      "action": "managed_challenge",
+      "comment": "Public reads — high ceiling + edge caching (see caching.json) absorbs match-day peaks. Contract §12.",
+      "contract_section": "§12"
+    },
+    {
+      "path": "GET /api/v1/leaderboard",
+      "period": "1m",
+      "requests_per_period": 600,
+      "action": "managed_challenge",
+      "comment": "Public rankings — cache with short TTL. Contract §26.",
+      "contract_section": "§26"
+    }
+  ],
+  "peak_plan": {
+    "match_start": ["caching + edge limits + backend per-user limit"],
+    "predictions_close": ["high edge burst allowance + short-TTL caching"],
+    "results_and_ranking_update": ["cache invalidation on result, queue for recalculation"],
+    "challenge_or_quiz_launch": ["edge absorbs via cache + limits; worker possible"],
+    "big_campaigns_notifications": ["pre-warm cache, raise edge ceilings temporarily"]
+  }
+}

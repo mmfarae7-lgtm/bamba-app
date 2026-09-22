@@ -1,0 +1,31 @@
+{
+  "_comment": "Cloudflare R2 object storage layout for BMBA. Public read via CDN; uploads via signed URLs / Workers only — never expose R2 keys to clients. Sensitive data (passwords, Bambat balances, points) stays in the database, never in R2.",
+  "storage_class": "Infrequent Access (default)",
+  "buckets": [
+    {
+      "name": "bmba-media",
+      "prefixes": {
+        "player-images": { "access": "public-read", "signed_upload": true, "note": "اللاعبون" },
+        "team-logos": { "access": "public-read", "signed_upload": true, "note": "شعارات الفرق" },
+        "competition-images": { "access": "public-read", "signed_upload": true, "note": "صور البطولات" },
+        "challenge-images": { "access": "public-read", "signed_upload": true, "note": "صور التحديات (بمبا/أنت المدرب/Quiz)" },
+        "prize-images": { "access": "public-read", "signed_upload": true, "note": "صور الجوائز" },
+        "partner-images": { "access": "public-read", "signed_upload": true, "note": "صور الشركاء" },
+        "user-uploads": { "access": "public-read", "signed_upload": true, "note": "رفع المستخدمين (avatar وغيره) — توقيع قصير الأمد فقط", "policy": "validate MIME & size at the edge (Worker/WAF) and enforce ownership key per user" },
+        "support-attachments": { "access": "private", "signed_read": "15m", "signed_upload": true, "note": "مرفقات الدعم — قراءة موقّعة فقط" }
+      }
+    }
+  ],
+  "access": {
+    "public_read": true,
+    "uploads": "signed-only",
+    "signing": "Workers (presigned) or S3-compatible SDK server-side",
+    "never_expose": ["R2 secret keys to browser", "balances/ledger data"]
+  },
+  "integration_points": [
+    "profiles.avatar_url (user-uploads)",
+    "المباريات والبطولات (الصور)",
+    "الجوائز والشركاء",
+    "مرفقات تذاكر الدعم"
+  ]
+}
