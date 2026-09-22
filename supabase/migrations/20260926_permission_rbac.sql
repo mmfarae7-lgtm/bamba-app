@@ -21,7 +21,8 @@
 
 -- ============ 0) دوال عامة مساعدة ============
 
--- هل المستخدم الحالي من فريق الإدارة (أي دور إداري قديم أو سجل admin_users جديد)
+-- هل المستخدم الحالي من فريق الإدارة — نسخة أساسية (تُرقَّى لاحقًا لتشمل admin_users بعد إنشائها)
+-- ملاحظة: دوال language sql تُدقَّق على الجداول وقت الإنشاء، لذا لا نستطيع الإشارة لـ admin_users قبل وجودها.
 create or replace function public.is_admin()
 returns boolean
 language sql stable security definer set search_path = public as $$
@@ -31,14 +32,14 @@ language sql stable security definer set search_path = public as $$
       and (
         p.role = 'super_admin'
         or exists (select 1 from public.admin_roles ar where ar.role = p.role)
-        or exists (select 1 from public.admin_users au where au.profile_id = p.id and au.status = 'active')
       )
   );
 $$;
 
 -- ============ 1) permissions — جدول الصلاحيات ============
 create table if not exists public.permissions (
-  key text primary key,
+  id uuid primary key default gen_random_uuid(),
+  key text not null unique,
   module text not null,
   action text not null,
   label_ar text not null,
@@ -512,6 +513,21 @@ where p.role in (select role from public.admin_roles)
    or p.role = 'super_admin'
 on conflict (profile_id) do nothing;
 
+-- ترقية is_admin لتشمل حسابات admin_users الجديدة (الجدول صار موجودًا الآن)
+create or replace function public.is_admin()
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+      and (
+        p.role = 'super_admin'
+        or exists (select 1 from public.admin_roles ar where ar.role = p.role)
+        or exists (select 1 from public.admin_users au where au.profile_id = p.id and au.status = 'active')
+      )
+  );
+$$;
+
 -- ============ 5) admin_user_roles — أدوار متعددة + صلاحيات مؤقتة ============
 create table if not exists public.admin_user_roles (
   id uuid primary key default gen_random_uuid(),
@@ -523,7 +539,7 @@ create table if not exists public.admin_user_roles (
   unique (admin_user_id, role_id)
 );
 
-create index if not exists admin_user_roles_active_idx on public.admin_user_roles (admin_user_id) where expires_at is null or expires_at > now();
+create index if not exists admin_user_roles_active_idx on public.admin_user_roles (admin_user_id, expires_at);
 
 alter table public.admin_user_roles enable row level security;
 drop policy if exists "admin_user_roles_read_admin" on public.admin_user_roles;
@@ -544,17 +560,16 @@ create table if not exists public.role_scopes (
   role_id uuid not null references public.roles(id) on delete cascade,
   scope_type text not null check (scope_type in ('global','competition','country','challenge','department')),
   scope_id text,
-  created_at timestamptz not null default now(),
-  unique (role_id, scope_type, coalesce(scope_id, ''))
+  created_at timestamptz not null default now()
 );
+
+-- فهرس فريد على النطاق (Postgres لا يقبل تعبيرًا داخل قيد unique — فقط عبر فهرس)
+create unique index if not exists role_scopes_unique_idx
+  on public.role_scopes (role_id, scope_type, coalesce(scope_id, ''));
 
 alter table public.role_scopes enable row level security;
 drop policy if exists "role_scopes_read_admin" on public.role_scopes;
 create policy "role_scopes_read_admin" on public.role_scopes for select to authenticated using (public.is_admin());
-drop policy if exists "role_scopes_write_super" on public.role_scopes;
-create policy "role_scopes_write_super" on public.role_scopes for insert to authenticated with check (
-  public.has_permission('security.manage_2fa')
-);
 grant select, insert on public.role_scopes to authenticated;
 
 -- هل ينطبق نطاق الدور على الكيان المطلوب؟
@@ -609,6 +624,12 @@ language sql stable security definer set search_path = public as $$
       )
   );
 $$;
+
+-- سياسة إدراج نطاقات الأدوار (نقلت هنا لأنها تحتاج has_permission المعرَّفة أعلاه)
+drop policy if exists "role_scopes_write_super" on public.role_scopes;
+create policy "role_scopes_write_super" on public.role_scopes for insert to authenticated with check (
+  public.has_permission('security.manage_2fa')
+);
 
 -- has_admin_module: يبقى يعمل عبر المسار الجديد + القديم معًا
 create or replace function public.has_admin_module(p_module text, p_write boolean default false)
@@ -1015,8 +1036,6 @@ drop trigger if exists trg_audit_arena_corrections on public.arena_corrections;
 create trigger trg_audit_arena_corrections after insert or update or delete on public.arena_corrections for each row execute function public.audit_sensitive_change();
 drop trigger if exists trg_audit_coupons on public.coupons;
 create trigger trg_audit_coupons after insert or update or delete on public.coupons for each row execute function public.audit_sensitive_change();
-drop trigger if exists trg_audit_approval_requests on public.approval_requests;
-create trigger trg_audit_approval_requests after insert or update or delete on public.approval_requests for each row execute function public.audit_sensitive_change();
 
 -- ============ 10) approval_requests — الطلبات الحساسة (Maker → Checker) ============
 create table if not exists public.approval_requests (
@@ -1036,6 +1055,10 @@ create table if not exists public.approval_requests (
 
 create index if not exists approval_requests_status_idx on public.approval_requests (status, created_at desc);
 create index if not exists approval_requests_type_idx on public.approval_requests (request_type);
+
+-- trigger التدقيق على approval_requests (بعد إنشاء الجدول مباشرة)
+drop trigger if exists trg_audit_approval_requests on public.approval_requests;
+create trigger trg_audit_approval_requests after insert or update or delete on public.approval_requests for each row execute function public.audit_sensitive_change();
 
 alter table public.approval_requests enable row level security;
 drop policy if exists "approval_requests_read" on public.approval_requests;
@@ -1066,7 +1089,7 @@ $$;
 -- إنشاء طلب اعتماد (Maker)
 create or replace function public.create_approval_request(
   p_request_type text, p_resource_type text, p_resource_id text default null,
-  p_reason text, p_request_data jsonb default '{}'::jsonb
+  p_reason text default null, p_request_data jsonb default '{}'::jsonb
 ) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
@@ -1159,6 +1182,13 @@ create table if not exists public.feature_flags (
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
+
+-- توافق: الجدول قد يكون موجودًا بمخطط أقدم (بدون label_ar/created_at) — نضيف الأعمدة ونعبئ
+alter table public.feature_flags add column if not exists label_ar text;
+alter table public.feature_flags add column if not exists created_at timestamptz not null default now();
+update public.feature_flags
+   set label_ar = coalesce(nullif(trim(coalesce(description, '')), ''), key)
+ where label_ar is null or trim(coalesce(label_ar, '')) = '';
 
 alter table public.feature_flags enable row level security;
 drop policy if exists "feature_flags_read" on public.feature_flags;
