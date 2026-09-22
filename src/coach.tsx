@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Check, ChevronDown, Crown, Gift, ListOrdered, Search, ShieldCheck, Star, WalletCards, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, Crown, Gift, Search, ShieldCheck, Star, WalletCards, X } from 'lucide-react';
 import { players } from './data';
 import { SubPageHeader } from './components';
 import type { Player } from './types';
@@ -23,15 +23,6 @@ const TEAM_LEAGUE: Record<string, string> = {
   'النصر': 'دوري روشن السعودي', 'الهلال': 'دوري روشن السعودي', 'الاتحاد': 'دوري روشن السعودي', 'الأهلي': 'دوري روشن السعودي',
 };
 const LEAGUES = [...new Set(players.map((p) => TEAM_LEAGUE[p.team] ?? 'أخرى'))];
-
-// أفضل المدربين — بيانات تجريبية (اسم الفريق + اسم المدرب + النقاط)
-const BEST_COACHES = [
-  { team: 'أسود الخليج', coach: 'أبو خالد', points: 342 },
-  { team: 'نسور الظل', coach: 'معتصم', points: 318 },
-  { team: 'ريال المستوطنة', coach: 'اليامامة', points: 291 },
-  { team: 'سوبر ستارز', coach: 'Nasser', points: 274 },
-  { team: 'فيليز المدينة', coach: 'سلمان', points: 251 },
-];
 
 const SCORING_RULES: Array<{ label: string; pts: number; type?: 'pos' | 'neg' }> = [
   { label: 'تسجيل هدف', pts: 5 },
@@ -156,18 +147,6 @@ export function CoachPage({ onBack, onRewards }: { onBack: () => void; onRewards
       <div className="coach-bottom-bar">
         <button className="outline-button" onClick={() => setShowSquad(true)}>تشكيلتي ({owned.length})</button>
         <button className="primary-button" disabled={owned.length < MAX_PLAYERS}>حفظ التشكيلة <ArrowLeft size={18} /></button>
-      </div>
-
-      <div className="best-coaches">
-        <h3><ListOrdered size={18} /> أفضل المدربين</h3>
-        <p>ترتيب المدربين حسب مجموع النقاط المكتسبة من أداء لاعبيهم.</p>
-        {BEST_COACHES.map((c, i) => (
-          <div className="coach-rank-row" key={c.team}>
-            <b className={i < 3 ? `top-${i + 1}` : ''}>{i + 1}</b>
-            <div className="coach-rank-info"><b>{c.team}</b><small>المدرب: {c.coach}</small></div>
-            <span className="coach-rank-pts">{c.points} <small>نقطة</small></span>
-          </div>
-        ))}
       </div>
 
       {showSquad && (

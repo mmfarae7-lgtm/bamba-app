@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CircleHelp, ListOrdered, Loader2, Search, Share2, Star, Trophy, WalletCards, Check } from 'lucide-react';
+import { ChevronDown, CircleHelp, ListOrdered, Loader2, Search, Share2, Star, Trophy, WalletCards, Check } from 'lucide-react';
 import { supabase, avatarUrl } from './lib/supabase';
 import { PageHeading } from './components';
 
@@ -248,17 +248,25 @@ function Podium({ rank, row, color }: { rank: number; row?: LeaderRow; color: st
 }
 
 function PointsInfo() {
+  // مطوي افتراضياً — الصفحة تبقى قصيرة والقواعد تظهر عند الطلب فقط.
+  const [open, setOpen] = useState(false);
   return (
     <div className="points-info">
-      <div><CircleHelp size={20} /><b>آلية احتساب النقاط</b></div>
-      <div className="points-rules">
-        <div className="rule-row"><span>توقع صحيح بالنتيجة (الأهداف)</span><b>3 نقاط</b></div>
-        <div className="rule-row"><span>توقع صحيح للفائز/التعادل بدون أهداف</span><b>1 نقطة</b></div>
-        <div className="rule-row featured"><span>مباراة نارية - توقع صحيح بالنتيجة</span><b>5 نقاط</b></div>
-        <div className="rule-row featured"><span>مباراة نارية - توقع صحيح للفائز</span><b>2 نقطة</b></div>
-        <div className="rule-row"><span>توقع صحيح بالنتيجة ونسبة المتوقعين أقل من 10%</span><b>4 نقاط</b></div>
-        <div className="rule-row featured"><span>مباراة نارية ونسبة المتوقعين أقل من 10%</span><b>6 نقاط</b></div>
-      </div>
+      <button className="points-info-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        <CircleHelp size={18} />
+        <b>آلية احتساب النقاط</b>
+        <span className={open ? 'points-toggle-icon open' : 'points-toggle-icon'}><ChevronDown size={16} /></span>
+      </button>
+      {open && (
+        <div className="points-rules">
+          <div className="rule-row"><span>توقع صحيح بالنتيجة (الأهداف)</span><b>3 نقاط</b></div>
+          <div className="rule-row"><span>توقع صحيح للفائز/التعادل بدون أهداف</span><b>1 نقطة</b></div>
+          <div className="rule-row featured"><span>مباراة نارية - توقع صحيح بالنتيجة</span><b>5 نقاط</b></div>
+          <div className="rule-row featured"><span>مباراة نارية - توقع صحيح للفائز</span><b>2 نقطة</b></div>
+          <div className="rule-row"><span>توقع صحيح بالنتيجة ونسبة المتوقعين أقل من 10%</span><b>4 نقاط</b></div>
+          <div className="rule-row featured"><span>مباراة نارية ونسبة المتوقعين أقل من 10%</span><b>6 نقاط</b></div>
+        </div>
+      )}
     </div>
   );
 }
